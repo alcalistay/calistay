@@ -25,6 +25,11 @@ type Phase = "show" | "hiding" | "done";
  * durduğu için katmanın ekranda takılı kalmasına yol açıyordu. Burada
  * kaldırma işi zamanlayıcıya bağlı, dolayısıyla her koşulda tamamlanır.
  *
+ * `body` üzerinde kaydırma kilidi KULLANILMIYOR. Bileşen bittiğinde `null`
+ * döndürür ama unmount olmaz; bu yüzden effect cleanup'ı hiç çalışmaz ve
+ * kilit sayfa ömrü boyunca açık kalırdı. Katman zaten `fixed inset-0` ve
+ * opak olduğundan bu iki saniyede altta kaydırma olması sorun değil.
+ *
  * İçerik altta zaten render edilmiş durumdadır; bu katman yalnızca üstünü
  * örter, arama motorlarını veya erişilebilirliği etkilemez.
  */
@@ -33,17 +38,10 @@ export function LoadingScreen() {
   const [phase, setPhase] = useState<Phase>("show");
 
   useEffect(() => {
-    // Ekran açıkken arka planın kayması engellenir.
-    if (!reduced) document.body.style.overflow = "hidden";
-
-    // Atlanacak durumda bile gizleme bir geri çağrımda yapılıyor: effect
-    // gövdesinde doğrudan setState çağırmak zincirleme render tetikler.
+    // Gizleme bir geri çağrımda yapılıyor: effect gövdesinde doğrudan
+    // setState çağırmak zincirleme render tetikler.
     const timer = setTimeout(() => setPhase("hiding"), reduced ? 0 : HOLD_MS);
-
-    return () => {
-      clearTimeout(timer);
-      document.body.style.overflow = "";
-    };
+    return () => clearTimeout(timer);
   }, [reduced]);
 
   // Solma bittiğinde katman DOM'dan tamamen kaldırılır.
