@@ -1,0 +1,78 @@
+rules_version = '2';
+
+// ALÇAL'26 — Firestore güvenlik kuralları
+//
+// Firebase Console → Firestore Database → Kurallar sekmesine yapıştırın.
+//
+// Mantık:
+// - Site ayarları herkes tarafından okunabilir (sayfa görünürlüğü buradan
+//   belirlendiği için ziyaretçinin de okuması gerekir), yalnızca giriş yapmış
+//   yöneticiler yazabilir.
+// - Başvuruları herkes oluşturabilir ama kimse okuyamaz; yalnızca giriş
+//   yapmış yöneticiler listeler ve durumunu günceller.
+// - Silme hiçbir koleksiyonda açık değil.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Yönetici = Authentication'da kayıtlı ve giriş yapmış herhangi bir kullanıcı.
+    // Firebase Console → Authentication → Sign-in method → E-posta/Şifre'yi açın
+    // ve yalnızca ekip üyeleri için hesap oluşturun. Kayıt akışı sitede yok.
+    function isAdmin() {
+      return request.auth != null;
+    }
+
+    // Site ayarları
+    match /site/settings {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Delege başvuruları
+    match /applications/{docId} {
+      allow create: if isValidApplication();
+      allow read, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Sponsorluk başvuruları
+    match /sponsorRequests/{docId} {
+      allow create: if isValidSponsorRequest();
+      allow read, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Formdan gelen kaydın beklenen alanları taşıdığını doğrular;
+    // koleksiyonun rastgele veriyle doldurulmasını zorlaştırır.
+    function isValidApplication() {
+      let d = request.resource.data;
+      return d.keys().hasAll([
+               'name', 'email', 'phone', 'school', 'city',
+               'choices', 'motivation', 'status', 'createdAt'
+             ])
+             && d.status == 'yeni'
+             && d.name is string && d.name.size() >= 3 && d.name.size() <= 120
+             && d.email is string && d.email.size() <= 200
+             && d.motivation is string && d.motivation.size() <= 5000
+             && d.choices is list && d.choices.size() <= 3;
+    }
+
+    function isValidSponsorRequest() {
+      let d = request.resource.data;
+      return d.keys().hasAll([
+               'org', 'person', 'email', 'areas', 'message',
+               'status', 'createdAt'
+             ])
+             && d.status == 'yeni'
+             && d.org is string && d.org.size() >= 2 && d.org.size() <= 200
+             && d.email is string && d.email.size() <= 200
+             && d.message is string && d.message.size() <= 5000
+             && d.areas is list && d.areas.size() <= 10;
+    }
+
+    // Tanımlanmamış her yol kapalı.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

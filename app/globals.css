@@ -1,0 +1,252 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ------------------------------------------------------------------
+   ALÇAL'26 — Tasarım tokenları
+
+   Site tek tonda: derin lacivert zemin sayfanın tamamında sürer.
+   Bölümler arka plan rengi değiştirmez, bu yüzden hiçbir yerde renk
+   sıçraması olmaz. Ayrım; boşluk, ince kenarlıklar ve yüzey
+   opaklığıyla (white/4 → white/8) kurulur.
+------------------------------------------------------------------- */
+
+:root {
+  --radius: 0.5rem;
+
+  /* Zemin rampası */
+  --deep: oklch(0.15 0.035 252);
+  --deep-2: oklch(0.19 0.04 252);
+  --deep-3: oklch(0.26 0.05 251);
+
+  --background: var(--deep);
+  --foreground: oklch(0.985 0.002 240);
+
+  /* Kart ve yüzeyler: zemine göre saydam beyaz katmanlar */
+  --card: oklch(1 0 0 / 3.5%);
+  --card-foreground: oklch(0.985 0.002 240);
+  --popover: oklch(0.185 0.04 252);
+  --popover-foreground: oklch(0.985 0.002 240);
+
+  /* Birincil eylem: koyu zeminde beyaz buton */
+  --primary: oklch(0.985 0.002 240);
+  --primary-foreground: oklch(0.15 0.035 252);
+
+  --secondary: oklch(1 0 0 / 6%);
+  --secondary-foreground: oklch(0.985 0.002 240);
+  --muted: oklch(1 0 0 / 5%);
+  --muted-foreground: oklch(0.72 0.025 245);
+
+  /* Vurgu: kısık bir mavi. İkonlar, etiketler ve hover kenarlıkları. */
+  --accent: oklch(0.7 0.085 250);
+  --accent-foreground: oklch(0.15 0.035 252);
+  --accent-dim: oklch(0.6 0.075 250);
+
+  --destructive: oklch(0.68 0.16 25);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.68 0.09 250);
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), "Inter", system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-dim: var(--accent-dim);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-deep: var(--deep);
+  --color-deep-2: var(--deep-2);
+  --color-deep-3: var(--deep-3);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+    background-color: var(--deep);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /**
+   * Zemin rengi bilinçli olarak `html` üzerinde; `body` saydam bırakılıyor.
+   *
+   * Sebep: `body` konumlandırılmış (`relative`) olduğu için CSS boyama
+   * sırasında negatif z-index'li alt katmanların ÜSTÜNDE boyanır. Body'ye
+   * arka plan verildiğinde `PageGlows` katmanı (-z-10) bu opak yüzeyin
+   * arkasında kalıp tamamen görünmez oluyordu.
+   */
+  body {
+    @apply text-foreground;
+    background-color: transparent;
+  }
+
+  ::selection {
+    background: color-mix(in oklch, var(--accent) 35%, transparent);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--deep);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(1 0 0 / 0.14);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(1 0 0 / 0.24);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Bölüm üstü küçük etiket */
+@utility kicker {
+  @apply text-[11px] font-semibold uppercase;
+  letter-spacing: 0.16em;
+}
+
+@utility tnum {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum";
+}
+
+/* ------------------------------------------------------------------
+   Işıma efektleri
+
+   Hepsi geniş yayılımlı ve düşük opaklıkta: amaç neon bir kenar değil,
+   yüzeyin altından sızan yumuşak bir aydınlanma hissi vermek.
+------------------------------------------------------------------- */
+
+/* Butonlar ve vurgulu yüzeyler için mavi ışıma */
+@utility glow-accent {
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--accent) 16%, transparent),
+    0 12px 44px -16px color-mix(in oklch, var(--accent) 55%, transparent);
+}
+
+/* Beyaz birincil buton — kendi rengiyle ışır */
+@utility glow-primary {
+  box-shadow: 0 12px 40px -14px oklch(1 0 0 / 0.35);
+}
+
+/**
+ * Kartlar için: ışıma rengi `--glow` değişkeninden okunur, böylece her
+ * komite kendi tonuyla ışıyabilir. Renk inline style ile verilir.
+ */
+@utility glow-card {
+  transition:
+    box-shadow 450ms ease,
+    border-color 300ms ease,
+    background-color 300ms ease,
+    transform 300ms ease;
+
+  &:hover,
+  &:focus-visible {
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, var(--glow, var(--accent)) 20%, transparent),
+      0 16px 50px -20px color-mix(in oklch, var(--glow, var(--accent)) 60%, transparent);
+  }
+}
+
+/**
+ * Kartın üst kenarında ışığın yakaladığı ince pırıltı.
+ * Yüzeylere hacim kazandırır; renk `--glow` verilmişse ondan, yoksa
+ * vurgu renginden okunur.
+ */
+@utility card-sheen {
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 1.5rem;
+    right: 1.5rem;
+    height: 1px;
+    pointer-events: none;
+    background-image: linear-gradient(
+      to right,
+      transparent,
+      color-mix(in oklch, var(--glow, var(--accent)) 42%, transparent),
+      transparent
+    );
+  }
+}
+
+/* Işığın yavaşça nefes alması — sabit gradyanların ölü görünmesini engeller */
+@keyframes glow-breathe {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.14);
+  }
+}
+
+/* Yükleme ekranındaki mührün girişi */
+@keyframes intro-seal {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes seal-halo {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.08);
+  }
+}
+
