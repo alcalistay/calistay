@@ -209,7 +209,9 @@ export function Apply() {
                         setChoices((prev) => ({ ...prev, [slot]: e.target.value }))
                       }
                       aria-invalid={i === 0 && Boolean(errors.choice1)}
-                      className="mt-1.5 h-11 w-full rounded-md border border-input bg-white/5 px-3 text-[14px] text-foreground outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/20 aria-invalid:border-destructive"
+                      // `color-scheme: dark`: tarayıcının yerleşik açılır listesi koyu
+                      // temayla çizilsin; yoksa beyaz listede beyaz yazı kalıyor.
+                      className="mt-1.5 h-11 w-full rounded-md border border-input bg-white/5 px-3 text-[14px] text-foreground outline-none transition-colors [color-scheme:dark] focus:border-ring focus:ring-2 focus:ring-ring/20 aria-invalid:border-destructive"
                     >
                       <option value="">Seçiniz</option>
                       {optionsFor(slot).map((c) => (
@@ -261,7 +263,7 @@ export function Apply() {
                 no="04"
                 title="Motivasyon metniniz"
                 required
-                detail="Neden bu çalıştaya katılmak istiyorsunuz, seçtiğiniz komitenin gündemi hakkında ne düşünüyorsunuz?"
+                detail="Neden bu çalıştaya katılmak istiyorsunuz, seçtiğiniz komitenin konusu hakkında ne düşünüyorsunuz?"
                 htmlFor="motivation"
               />
               <textarea

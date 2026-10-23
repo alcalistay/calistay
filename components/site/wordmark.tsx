@@ -25,7 +25,7 @@ export function Wordmark({
 
       {showText && (
         <span className="text-[17px] font-semibold tracking-tight">
-          ALÇAL&rsquo;26
+          ALÇAL&rsquo;27
         </span>
       )}
     </span>

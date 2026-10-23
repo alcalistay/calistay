@@ -30,7 +30,7 @@ function EventJsonLd() {
         addressCountry: "TR",
       },
     },
-    about: committees.map((c) => c.agenda),
+    about: committees.map((c) => c.name),
   };
 
   return (

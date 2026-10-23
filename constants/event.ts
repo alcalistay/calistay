@@ -4,19 +4,19 @@
  */
 
 export const event = {
-  shortName: "ALÇAL'26",
-  name: "Atatürk Lisesi Çalıştayı 2026",
+  shortName: "ALÇAL'27",
+  name: "Atatürk Lisesi Çalıştayı 2027",
   organizer: "ALÇAL Organizasyon Ekibi",
   school: "Eskişehir Atatürk Lisesi",
   language: "Türkçe",
 
   /**
-   * NOT: Brifing dosyasında yalnızca "Aralık 2026" belirtiliyor; gün bilgisi yok.
+   * NOT: Brifing dosyasında yalnızca "Aralık 2027" belirtiliyor; gün bilgisi yok.
    * Kesin tarih netleştiğinde geri sayımın doğru çalışması için burayı güncelleyin.
    */
-  startsAt: "2026-12-18T16:00:00+03:00",
-  dateLabel: "Aralık 2026",
-  dateLabelLong: "18 – 20 Aralık 2026",
+  startsAt: "2027-12-18T16:00:00+03:00",
+  dateLabel: "Aralık 2027",
+  dateLabelLong: "18 – 20 Aralık 2027",
   isDatePreliminary: true,
 
   venue: {
@@ -76,8 +76,8 @@ export const stats: Stat[] = [
 
 /** Hakkında bölümündeki tanıtım metni. */
 export const aboutParagraphs: string[] = [
-  "ALÇAL'26, lise düzeyindeki öğrencileri, eğitimcileri ve genç lider adaylarını bir araya getiren, ulusal katılıma açık bir çalıştay konferansıdır. Etkinlik Eskişehir Atatürk Lisesi'nde düzenlenir ve Türkiye'nin farklı illerinden gelen öğrencilere açıktır.",
-  "Katılımcılar sekiz komiteye dağılır, kendilerine verilen gündem maddesini müzakere eder ve oturumların sonunda vardıkları çözümü bir komite raporuna dönüştürür. Program boyunca eleştirel düşünme, müzakere, sunum ve liderlik becerileri üzerine çalışılır.",
+  "ALÇAL'27, lise düzeyindeki öğrencileri, eğitimcileri ve genç lider adaylarını bir araya getiren, ulusal katılıma açık bir çalıştay konferansıdır. Etkinlik Eskişehir Atatürk Lisesi'nde düzenlenir ve Türkiye'nin farklı illerinden gelen öğrencilere açıktır.",
+  "Katılımcılar sekiz komiteye dağılır, komitelerinin konusunu müzakere eder ve oturumların sonunda vardıkları çözümü bir komite raporuna dönüştürür. Program boyunca eleştirel düşünme, müzakere, sunum ve liderlik becerileri üzerine çalışılır.",
 ];
 
 /** Okul tarihçesi — zaman çizelgesi olarak sergilenir. */

@@ -198,15 +198,15 @@ const ogBg = Buffer.from(`
         fill="${BLUE}">ULUSAL KATILIMA A&#199;IK L&#304;SE &#199;ALI&#350;TAYI</text>
 
   <text x="450" y="352" font-family="${SANS}" font-size="94" font-weight="700"
-        letter-spacing="-2.5" fill="${WHITE}">AL&#199;AL&#8217;26</text>
+        letter-spacing="-2.5" fill="${WHITE}">AL&#199;AL&#8217;27</text>
 
   <text x="452" y="404" font-family="${SANS}" font-size="30"
-        fill="${WHITE}" opacity="0.74">Atat&#252;rk Lisesi &#199;al&#305;&#351;tay&#305; 2026</text>
+        fill="${WHITE}" opacity="0.74">Atat&#252;rk Lisesi &#199;al&#305;&#351;tay&#305; 2027</text>
 
   <rect x="452" y="440" width="120" height="1" fill="${WHITE}" opacity="0.25"/>
 
   <text x="452" y="486" font-family="${SANS}" font-size="23"
-        fill="${WHITE}" opacity="0.55">Aral&#305;k 2026 &#160;&#183;&#160; Odunpazar&#305; / Eski&#351;ehir</text>
+        fill="${WHITE}" opacity="0.55">Aral&#305;k 2027 &#160;&#183;&#160; Odunpazar&#305; / Eski&#351;ehir</text>
   <text x="452" y="522" font-family="${SANS}" font-size="23"
         fill="${WHITE}" opacity="0.55">300 delege &#160;&#183;&#160; 8 komite</text>
 </svg>`);

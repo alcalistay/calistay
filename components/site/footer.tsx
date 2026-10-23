@@ -152,7 +152,7 @@ export function Footer() {
         </p>
 
         <p className="mt-3 text-[12px] text-muted-foreground/60">
-          © 2026 {event.name}. Tüm hakları saklıdır.
+          © 2027 {event.name}. Tüm hakları saklıdır.
         </p>
       </div>
     </footer>

@@ -14,7 +14,7 @@ const inter = Inter({
 });
 
 const description =
-  "ALÇAL'26 — Eskişehir Atatürk Lisesi'nin düzenlediği, ulusal katılıma açık lise düzeyi çalıştay konferansı. 300 delege, 8 komite, Aralık 2026.";
+  "ALÇAL'27 — Eskişehir Atatürk Lisesi'nin düzenlediği, ulusal katılıma açık lise düzeyi çalıştay konferansı. 300 delege, 8 komite, Aralık 2027.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://alcal26.com"),
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   },
   description,
   keywords: [
-    "ALÇAL'26",
+    "ALÇAL'27",
     "Atatürk Lisesi Çalıştayı",
     "çalıştay",
     "Eskişehir",

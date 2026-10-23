@@ -61,7 +61,7 @@ export function Hero() {
           {...rise(0.12)}
           className="mt-8 text-[clamp(2.6rem,8vw,4.6rem)] font-bold leading-[1.02] tracking-tight text-foreground"
         >
-          ALÇAL&rsquo;26
+          ALÇAL&rsquo;27
         </motion.h1>
 
         <motion.p
@@ -77,7 +77,7 @@ export function Hero() {
         >
           Eskişehir Atatürk Lisesi tarafından düzenlenen çalıştaya 8 komitede{" "}
           {settings.delegates} delege katılacak. Etkinlik {settings.dateLabel}
-          &rsquo;da, Türkiye&rsquo;nin farklı illerinden gelen lise
+          &rsquo;de, Türkiye&rsquo;nin farklı illerinden gelen lise
           öğrencilerine açık olarak gerçekleştirilecek.
         </motion.p>
 

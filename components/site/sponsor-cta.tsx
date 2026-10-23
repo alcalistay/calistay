@@ -29,7 +29,7 @@ export function SponsorCta() {
                   Etkinliğe destek olmak ister misiniz?
                 </h2>
                 <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
-                  ALÇAL&rsquo;26 tamamen öğrenciler tarafından yürütülüyor.
+                  ALÇAL&rsquo;27 tamamen öğrenciler tarafından yürütülüyor.
                   Mekân giderlerinden basılı materyale, katılımcı setlerinden
                   ikram ve lojistiğe kadar {supportAreas.length} başlıkta kurum
                   desteğine ihtiyaç duyuyoruz. Destek alanlarının tamamını ve

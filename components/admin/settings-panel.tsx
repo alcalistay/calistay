@@ -144,7 +144,7 @@ export function SettingsPanel() {
               type="text"
               value={draft.dateLabel}
               onChange={(e) => update("dateLabel", e.target.value)}
-              placeholder="Aralık 2026"
+              placeholder="Aralık 2027"
               className={inputClass}
             />
           </Field>
