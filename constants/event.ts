@@ -11,12 +11,12 @@ export const event = {
   language: "Türkçe",
 
   /**
-   * NOT: Brifing dosyasında yalnızca "Aralık 2027" belirtiliyor; gün bilgisi yok.
-   * Kesin tarih netleştiğinde geri sayımın doğru çalışması için burayı güncelleyin.
+   * Etkinlik 15 – 17 Ocak 2027. Geri sayım ilk güne (15 Ocak) ayarlı;
+   * açılış saati netleşince `startsAt` güncellenmeli.
    */
-  startsAt: "2027-12-18T16:00:00+03:00",
-  dateLabel: "Aralık 2027",
-  dateLabelLong: "18 – 20 Aralık 2027",
+  startsAt: "2027-01-15T09:00:00+03:00",
+  dateLabel: "Ocak 2027",
+  dateLabelLong: "15 – 17 Ocak 2027",
   isDatePreliminary: true,
 
   venue: {

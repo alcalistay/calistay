@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Send } from "lucide-react";
+import { ArrowUpRight, MapPin, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Reveal } from "@/components/fx/reveal";
 import { SectionHeading } from "./section-heading";
@@ -143,7 +143,37 @@ export function Apply() {
           lead="Çalıştaya katılmak için formu doldurun. Başvurular organizasyon komitesi tarafından değerlendirilecek ve sonuçlar e-posta ile bildirilecektir."
         />
 
-        <Reveal className="mt-12">
+        {/* Etkinlik yeri — başvurudan önce görünür kalsın diye formun dışında. */}
+        <Reveal className="mt-10">
+          <div className="card-sheen flex flex-col gap-4 rounded-lg border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <MapPin className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  Etkinlik yeri
+                </p>
+                <p className="mt-1.5 text-[14px] font-medium text-foreground">
+                  {event.venue.name}
+                </p>
+                <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
+                  {event.venue.address}
+                </p>
+              </div>
+            </div>
+
+            <a
+              href={event.venue.mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center gap-2 rounded-md border border-border px-4 py-2 text-[13px] text-foreground/85 transition-colors hover:border-accent/40 hover:text-foreground"
+            >
+              Haritada aç
+              <ArrowUpRight className="size-3.5" aria-hidden />
+            </a>
+          </div>
+        </Reveal>
+
+        <Reveal className="mt-8">
           {loading ? (
             // Ayarlar okunana kadar formu göstermeyip yer tutucu bırakıyoruz;
             // aksi hâlde kapalı bir form bir an için açık görünürdü.

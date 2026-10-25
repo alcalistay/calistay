@@ -206,9 +206,9 @@ const ogBg = Buffer.from(`
   <rect x="452" y="440" width="120" height="1" fill="${WHITE}" opacity="0.25"/>
 
   <text x="452" y="486" font-family="${SANS}" font-size="23"
-        fill="${WHITE}" opacity="0.55">Aral&#305;k 2027 &#160;&#183;&#160; Odunpazar&#305; / Eski&#351;ehir</text>
+        fill="${WHITE}" opacity="0.55">15 &#8211; 17 Ocak 2027 &#160;&#183;&#160; Eski&#351;ehir</text>
   <text x="452" y="522" font-family="${SANS}" font-size="23"
-        fill="${WHITE}" opacity="0.55">300 delege &#160;&#183;&#160; 8 komite</text>
+        fill="${WHITE}" opacity="0.55">8 komite &#160;&#183;&#160; 3 g&#252;n</text>
 </svg>`);
 
 await sharp(ogBg)
