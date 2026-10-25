@@ -16,6 +16,8 @@ export type DelegateApplication = {
   school: string;
   grade: string;
   city: string;
+  /** Delegenin kendi ev adresi. */
+  address: string;
   experience: string;
   choices: string[];
   motivation: string;

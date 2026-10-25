@@ -44,6 +44,7 @@ const delegateColumns: Column<AnyRow & { id: string }>[] = [
   },
   { key: "email", label: "E-posta", value: (r) => String(r.email ?? ""), detailOnly: true },
   { key: "phone", label: "Telefon", value: (r) => String(r.phone ?? ""), detailOnly: true },
+  { key: "address", label: "Adres", value: (r) => String(r.address ?? ""), detailOnly: true },
   { key: "grade", label: "Sınıf", value: (r) => String(r.grade ?? ""), detailOnly: true },
   {
     key: "experience",
