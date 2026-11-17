@@ -94,6 +94,29 @@
     scroll-behavior: smooth;
     background-color: var(--deep);
     -webkit-tap-highlight-color: transparent;
+    color-scheme: dark;
+  }
+
+  /* Form açılır kutuları ve seçenekleri için derin lacivert karanlık tema */
+  select {
+    color-scheme: dark;
+  }
+
+  select option,
+  select optgroup {
+    background-color: #0c1424;
+    color: #f1f5f9;
+  }
+
+  select option:checked {
+    background-color: #1e293b;
+    color: #ffffff;
+  }
+
+  select optgroup {
+    background-color: #070c18;
+    color: #94a3b8;
+    font-weight: 600;
   }
 
   /**

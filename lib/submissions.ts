@@ -1,12 +1,18 @@
 import {
   addDoc,
   collection,
+  doc,
   serverTimestamp,
+  setDoc,
   type Timestamp,
 } from "firebase/firestore";
 import { getDb, paths } from "@/lib/firebase";
 
 export type ApplicationStatus = "yeni" | "kabul" | "red";
+
+export type SubmitResult =
+  | { success: true }
+  | { success: false; reason: "ALREADY_EXISTS" | "NO_DB" | "ERROR" };
 
 export type DelegateApplication = {
   id: string;
@@ -14,6 +20,7 @@ export type DelegateApplication = {
   email: string;
   phone: string;
   school: string;
+  schoolOther?: string;
   grade: string;
   city: string;
   /** Delegenin kendi ev adresi. */
@@ -63,9 +70,41 @@ async function submit(path: string, data: Record<string, unknown>) {
   return true;
 }
 
-export const submitApplication = (
+/**
+ * Delege başvurusunu Firestore'a yazar.
+ * Telefon numarasını benzersiz doküman ID'si yaparak mükerrer başvuruları
+ * veritabanı seviyesinde engeller.
+ */
+export async function submitApplication(
   data: Omit<DelegateApplication, "id" | "status" | "createdAt">,
-) => submit(paths.applications, data);
+): Promise<SubmitResult> {
+  const db = getDb();
+  if (!db) return { success: false, reason: "NO_DB" };
+
+  const cleanPhone = data.phone.replace(/\D/g, "");
+  const safeEmail = data.email.trim().toLowerCase().replace(/[\/\s]/g, "_");
+
+  // Doküman ID'si telefon numarası bazlıdır. Var olan doküman güncellenemez (update izni yoktur).
+  const appRef = doc(db, paths.applications, `tel_${cleanPhone}`);
+
+  try {
+    await setDoc(appRef, {
+      ...data,
+      phoneNormalized: cleanPhone,
+      emailNormalized: safeEmail,
+      status: "yeni",
+      createdAt: serverTimestamp(),
+    });
+    return { success: true };
+  } catch (err: unknown) {
+    const errorObj = err as { code?: string; message?: string };
+    if (errorObj?.code === "permission-denied") {
+      return { success: false, reason: "ALREADY_EXISTS" };
+    }
+    console.error("Firestore submission error:", err);
+    return { success: false, reason: "ERROR" };
+  }
+}
 
 export const submitSponsorRequest = (
   data: Omit<SponsorRequest, "id" | "status" | "createdAt">,

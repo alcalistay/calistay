@@ -28,7 +28,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Delege başvuruları
+    // Delege başvuruları (Telefon numarası bazlı tekil kayıt)
     match /applications/{docId} {
       allow create: if isValidApplication();
       allow read, update: if isAdmin();
@@ -47,12 +47,15 @@ service cloud.firestore {
     function isValidApplication() {
       let d = request.resource.data;
       return d.keys().hasAll([
-               'name', 'email', 'phone', 'school', 'city',
-               'choices', 'motivation', 'status', 'createdAt'
+               'name', 'email', 'phone', 'school', 'city', 'address',
+               'experience', 'choices', 'motivation',
+               'status', 'createdAt'
              ])
              && d.status == 'yeni'
              && d.name is string && d.name.size() >= 3 && d.name.size() <= 120
              && d.email is string && d.email.size() <= 200
+             && d.phone is string && d.phone.size() <= 50
+             && d.address is string && d.address.size() <= 1000
              && d.motivation is string && d.motivation.size() <= 5000
              && d.choices is list && d.choices.size() <= 3;
     }

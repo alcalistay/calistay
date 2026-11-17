@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Mail, MapPin, Phone } from "lucide-react";
 import { Wordmark } from "./wordmark";
 import { InstagramGlyph } from "./instagram-glyph";
-import { estimateNote, event } from "@/constants/event";
+import { event } from "@/constants/event";
 import { contacts } from "@/constants/team";
 import { useSettings } from "@/components/providers/settings-provider";
 
@@ -146,13 +146,8 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Sitedeki yıldızlı sayıların açıklaması */}
-        <p className="pt-6 text-[12.5px] text-muted-foreground">
-          {estimateNote}
-        </p>
-
-        <p className="mt-3 text-[12px] text-muted-foreground/60">
-          © 2027 {event.name}. Tüm hakları saklıdır.
+        <p className="pt-6 text-[12px] text-muted-foreground/60">
+          © {event.name}. Tüm hakları saklıdır.
         </p>
       </div>
     </footer>

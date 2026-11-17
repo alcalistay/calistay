@@ -53,7 +53,6 @@ export const stats: Stat[] = [
     value: 370,
     label: "Toplam katılımcı",
     detail: "Delege, danışman ve organizasyon ekibiyle birlikte",
-    estimated: true,
   },
   {
     value: 300,
