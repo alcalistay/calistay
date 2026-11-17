@@ -26,6 +26,8 @@ export type DelegateApplication = {
   /** Delegenin kendi ev adresi. */
   address: string;
   experience: string;
+  /** Varsa delegenin MUN/çalıştay ödülleri */
+  awards?: string;
   choices: string[];
   motivation: string;
   status: ApplicationStatus;

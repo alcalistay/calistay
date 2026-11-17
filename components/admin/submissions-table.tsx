@@ -280,6 +280,7 @@ export function SubmissionsTable<T extends Row>({
         "Okul",
         "Sınıf",
         "Geçmiş Deneyim",
+        "Varsa Ödüller",
         "1. Tercih Komite",
         "2. Tercih Komite",
         "3. Tercih Komite",
@@ -305,6 +306,7 @@ export function SubmissionsTable<T extends Row>({
           schoolName,
           String(row.grade || "—"),
           row.experience ? `${row.experience} konferans` : "0",
+          String(row.awards || "—"),
           committeeName(choices[0] || ""),
           committeeName(choices[1] || ""),
           committeeName(choices[2] || ""),
@@ -327,6 +329,7 @@ export function SubmissionsTable<T extends Row>({
         { wch: 52 },  // Okul Adı (Devasa Genişlik - en uzun lise isimleri bile tek satıra sığar)
         { wch: 14 },  // Sınıf
         { wch: 20 },  // Geçmiş Deneyim
+        { wch: 30 },  // Varsa Ödüller (Geniş)
         { wch: 32 },  // 1. Tercih Komite (Tam Komite Adı sığar)
         { wch: 32 },  // 2. Tercih Komite
         { wch: 32 },  // 3. Tercih Komite
@@ -427,6 +430,7 @@ export function SubmissionsTable<T extends Row>({
         "Okul",
         "Sınıf",
         "Geçmiş Deneyim",
+        "Varsa Ödüller",
         "1. Tercih Komite",
         "2. Tercih Komite",
         "3. Tercih Komite",
@@ -454,6 +458,7 @@ export function SubmissionsTable<T extends Row>({
           clean(schoolName),
           clean(row.grade || "—"),
           clean(row.experience ? `${row.experience} konferans` : "0"),
+          clean(row.awards || "—"),
           clean(committeeName(choices[0] || "")),
           clean(committeeName(choices[1] || "")),
           clean(committeeName(choices[2] || "")),
@@ -1270,11 +1275,21 @@ export function SubmissionsTable<T extends Row>({
                     </div>
                   )}
 
-                  <div className="mt-3 text-[12.5px] text-muted-foreground">
-                    Geçmiş Konferans / MUN Deneyimi:{" "}
-                    <strong className="text-foreground">
-                      {String(selectedRow.experience ?? "0")} adet
-                    </strong>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-[12.5px] text-muted-foreground">
+                    <div>
+                      Geçmiş Konferans / MUN Deneyimi:{" "}
+                      <strong className="text-foreground">
+                        {String(selectedRow.experience ?? "0")} adet
+                      </strong>
+                    </div>
+                    {Boolean(selectedRow.awards) && (
+                      <div>
+                        Aldığı Ödüller:{" "}
+                        <strong className="text-accent">
+                          {String(selectedRow.awards)}
+                        </strong>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

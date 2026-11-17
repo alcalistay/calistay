@@ -24,15 +24,6 @@ export function SponsorStats() {
             {stat.value < 1900
               ? stat.value.toLocaleString("tr-TR")
               : String(stat.value)}
-            {stat.estimated && (
-              <span
-                aria-hidden
-                className="ml-0.5 text-base text-accent"
-                title="Tahmini sayı"
-              >
-                *
-              </span>
-            )}
           </p>
           <p className="mt-1 text-[13px] font-medium text-foreground">
             {stat.label}

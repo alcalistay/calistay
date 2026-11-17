@@ -2,6 +2,7 @@ import { Navbar } from "@/components/site/navbar";
 import { Hero } from "@/components/site/hero";
 import { About } from "@/components/site/about";
 import { Committees } from "@/components/site/committees";
+import { Team } from "@/components/site/team";
 import { Apply } from "@/components/site/apply";
 import { SponsorCta } from "@/components/site/sponsor-cta";
 import { Footer } from "@/components/site/footer";
@@ -49,6 +50,7 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <About />
+        <Team />
         <Committees />
         <Apply />
         <SponsorCta />

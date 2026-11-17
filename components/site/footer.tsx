@@ -10,6 +10,7 @@ import { useSettings } from "@/components/providers/settings-provider";
 
 const baseNav = [
   { label: "Hakkında", href: "/#hakkinda" },
+  { label: "Ekibimiz", href: "/#ekibimiz" },
   { label: "Komiteler", href: "/#komiteler" },
   { label: "Başvuru", href: "/#basvuru" },
 ];

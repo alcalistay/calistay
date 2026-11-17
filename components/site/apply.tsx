@@ -78,6 +78,7 @@ export function Apply() {
   const [grade, setGrade] = useState("");
   const [address, setAddress] = useState("");
   const [experience, setExperience] = useState<Experience>("0");
+  const [awards, setAwards] = useState("");
   const [choices, setChoices] = useState({ c1: "", c2: "", c3: "" });
   const [motivation, setMotivation] = useState("");
 
@@ -180,6 +181,7 @@ export function Apply() {
         grade,
         address: trimmedAddress,
         experience,
+        awards: awards.trim(),
         choices: selectedCommittees,
         motivation: trimmedMotivation,
       });
@@ -230,6 +232,7 @@ export function Apply() {
         `Okul: ${effectiveSchool}`,
         `Sınıf: ${grade}`,
         `Geçmiş Deneyim: ${experience} konferans/çalıştay`,
+        awards.trim() ? `Varsa Ödüller: ${awards.trim()}` : "",
         `Açık Adres: ${trimmedAddress}`,
         "",
         "Komite Tercihleri:",
@@ -310,6 +313,7 @@ export function Apply() {
                   setSchool("");
                   setSchoolOther("");
                   setAddress("");
+                  setAwards("");
                   setMotivation("");
                   setChoices({ c1: "", c2: "", c3: "" });
                 }}
@@ -585,6 +589,31 @@ export function Apply() {
                       {option}
                     </button>
                   ))}
+                </div>
+
+                {/* Varsa Ödüller */}
+                <div className="mt-5">
+                  <label
+                    htmlFor="awards"
+                    className="text-[13px] font-medium text-foreground"
+                  >
+                    Varsa Aldığınız Ödüller{" "}
+                    <span className="text-[12px] font-normal text-muted-foreground">
+                      (Opsiyonel)
+                    </span>
+                  </label>
+                  <input
+                    id="awards"
+                    name="awards"
+                    type="text"
+                    value={awards}
+                    onChange={(e) => setAwards(e.target.value)}
+                    placeholder="Örn: En İyi Delege (Best Delegate), Mansiyon (Honorable Mention)..."
+                    className="mt-2 h-11 w-full rounded-md border border-input bg-white/5 px-3.5 text-[14px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                  />
+                  <p className="mt-1 text-[11.5px] text-muted-foreground">
+                    Daha önce katıldığınız konferans veya çalıştaylarda aldığınız ödüller varsa belirtebilirsiniz.
+                  </p>
                 </div>
               </fieldset>
 

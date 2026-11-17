@@ -10,13 +10,14 @@ import { useSettings } from "@/components/providers/settings-provider";
 
 const baseLinks = [
   { href: "/#hakkinda", label: "Hakkında" },
+  { href: "/#ekibimiz", label: "Ekibimiz" },
   { href: "/#komiteler", label: "Komiteler" },
 ];
 
 const sponsorLink = { href: "/sponsor", label: "Sponsorluk" };
 
 /** Aktif bölüm göstergesi yalnızca ana sayfadaki çapa bağlantıları için. */
-const sectionIds = ["hakkinda", "komiteler"];
+const sectionIds = ["hakkinda", "ekibimiz", "komiteler"];
 
 /**
  * Zemin sayfa boyunca aynı tonda olduğu için navbar renk değiştirmez;

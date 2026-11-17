@@ -39,13 +39,7 @@ export type Stat = {
   value: number;
   label: string;
   detail: string;
-  /** true ise sayının yanına yıldız konur; açıklaması footer'da yer alır. */
-  estimated?: boolean;
 };
-
-/** Footer'daki dipnot — `estimated` işaretli sayılar için. */
-export const estimateNote =
-  "* Tahmin edilen toplam katılımcı sayısıdır.";
 
 /** Brifingdeki katılımcı tablosundan türetildi. */
 export const stats: Stat[] = [
