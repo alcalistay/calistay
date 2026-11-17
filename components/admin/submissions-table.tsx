@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
+  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -25,6 +26,7 @@ import {
   ChevronDown,
   FileSpreadsheet,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -74,8 +76,24 @@ const dateOnlyFormat = new Intl.DateTimeFormat("tr-TR", {
   dateStyle: "short",
 });
 
-const committeeName = (id: string) =>
-  committees.find((c) => c.id === id)?.name ?? id;
+const committeeName = (id: string) => {
+  if (!id || id === "Admin" || id === "—") return "—";
+  const found = committees.find((c) => c.id === id);
+  if (found) return found.name;
+  const legacyMap: Record<string, string> = {
+    "avrupa-birligi-konseyi": "Avrupa Birliği Konseyi",
+    "unhcr": "UNHCR",
+    "interpol": "Interpol",
+    "dunya-ticaret-orgutu": "Dünya Ticaret Örgütü",
+    "turkiye-buyuk-millet-meclisi": "TBMM",
+    "nato": "NATO",
+  };
+  if (legacyMap[id]) return legacyMap[id];
+  return id
+    .split("-")
+    .map((w) => w.charAt(0).toLocaleUpperCase("tr") + w.slice(1))
+    .join(" ");
+};
 
 // Web Tablosu İçin Genişletilmiş Varsayılan Sütun Aralıkları
 const DEFAULT_WIDTHS: Record<string, number> = {
@@ -85,7 +103,7 @@ const DEFAULT_WIDTHS: Record<string, number> = {
   committee: 200,  // 1. Tercih komite
   phone: 170,
   status: 190,
-  actions: 100,
+  actions: 130,
 };
 
 export function SubmissionsTable<T extends Row>({
@@ -108,6 +126,7 @@ export function SubmissionsTable<T extends Row>({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "hepsi">("hepsi");
   const [committeeFilter, setCommitteeFilter] = useState<string>("hepsi");
+  const [roleFilter, setRoleFilter] = useState<"hepsi" | "delege" | "chair" | "admin">("hepsi");
   const [selectedRow, setSelectedRow] = useState<T | null>(null);
 
   // Dışa Aktarma Menüsü Açık/Kapalı
@@ -215,6 +234,11 @@ export function SubmissionsTable<T extends Row>({
     return rows.filter((row) => {
       if (statusFilter !== "hepsi" && row.status !== statusFilter) return false;
 
+      if (isDelegate && roleFilter !== "hepsi") {
+        const rType = String(row.applicantType ?? "delege").toLowerCase();
+        if (rType !== roleFilter) return false;
+      }
+
       if (isDelegate && committeeFilter !== "hepsi") {
         const choices = Array.isArray(row.choices) ? (row.choices as string[]) : [];
         if (!choices.includes(committeeFilter)) return false;
@@ -227,7 +251,7 @@ export function SubmissionsTable<T extends Row>({
           .includes(term),
       );
     });
-  }, [rows, search, statusFilter, committeeFilter, searchKeys, isDelegate]);
+  }, [rows, search, statusFilter, committeeFilter, roleFilter, searchKeys, isDelegate]);
 
   // İstatistikler
   const counts = useMemo(
@@ -254,6 +278,64 @@ export function SubmissionsTable<T extends Row>({
     }
   }
 
+  /** Tek bir başvuruyu kalıcı olarak sil */
+  async function deleteSubmission(id: string, name?: string) {
+    const displayName = name ? `"${name}" adlı` : "Bu";
+    if (
+      !window.confirm(
+        `${displayName} başvuruyu kalıcı olarak silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz.`
+      )
+    ) {
+      return;
+    }
+
+    const db = getDb();
+    if (!db) return;
+    try {
+      await deleteDoc(doc(db, path, id));
+      toast.success("Başvuru kalıcı olarak silindi.");
+      if (selectedRow && selectedRow.id === id) {
+        setSelectedRow(null);
+      }
+    } catch (err) {
+      console.error("Silme hatası:", err);
+      toast.error(
+        "Başvuru silinemedi. Firebase Console Kuralları'nda delete izninin açık olduğundan emin olun."
+      );
+    }
+  }
+
+  /** Mevcut filtredeki tüm başvuruları toplu olarak sil */
+  async function deleteAllSubmissions() {
+    const target = filtered;
+    if (target.length === 0) return;
+    const count = target.length;
+    if (
+      !window.confirm(
+        `DİKKAT: Listedeki ${count} adet başvuru kalıcı olarak silinecek!\n\nBu işlem geri alınamaz. Devam etmek istiyor musunuz?`
+      )
+    ) {
+      return;
+    }
+
+    const db = getDb();
+    if (!db) return;
+    try {
+      let deletedCount = 0;
+      for (const r of target) {
+        await deleteDoc(doc(db, path, r.id));
+        deletedCount++;
+      }
+      toast.success(`${deletedCount} adet başvuru kalıcı olarak silindi.`);
+      setSelectedRow(null);
+    } catch (err) {
+      console.error("Toplu silme hatası:", err);
+      toast.error(
+        "Başvurular silinirken bir hata oluştu. Firebase Console Kuralları'nı kontrol edin."
+      );
+    }
+  }
+
   /**
    * KUSURSUZ VE SÜTUNLARI ÖZEL OLARAK GENİŞLETİLMİŞ GERÇEK EXCEL (.XLSX) DOSYASI
    * Excel'de açıldığında sütunlar sıkışmaz; Ad Soyad, Okul, Adres ve Motivasyon sütunları
@@ -271,6 +353,7 @@ export function SubmissionsTable<T extends Row>({
     if (isDelegate) {
       const headers = [
         "Sıra",
+        "Başvuru Türü",
         "Kayıt Tarihi",
         "Durum",
         "Ad Soyad",
@@ -279,9 +362,9 @@ export function SubmissionsTable<T extends Row>({
         "Şehir",
         "Okul",
         "Sınıf",
-        "Geçmiş Deneyim",
-        "Varsa Ödüller",
-        "1. Tercih Komite",
+        "Geçmiş Deneyim Sayısı",
+        "Katılınan Çalıştay/MUN ve Ödüller",
+        "1. Tercih Komite / Departman",
         "2. Tercih Komite",
         "3. Tercih Komite",
         "Açık Ev Adresi",
@@ -295,8 +378,27 @@ export function SubmissionsTable<T extends Row>({
             ? `${row.schoolOther} (Diğer)`
             : String(row.school || row.schoolOther || "—");
 
+        const rawType = String(row.applicantType ?? "delege").toLowerCase();
+        const roleLabel =
+          rawType === "chair"
+            ? "Chair"
+            : rawType === "admin"
+              ? "Admin"
+              : "Delege";
+
+        const awardsOrEvents = String(
+          row.pastConferencesAndAwards || row.awards || "—",
+        );
+
+        const isRowAdmin = rawType === "admin";
+        const choice1 =
+          isRowAdmin
+            ? "—"
+            : committeeName(choices[0] || "");
+
         return [
           i + 1,
+          roleLabel,
           row.createdAt ? dateFormat.format(row.createdAt) : "—",
           STATUS_SHORT[row.status] || "Yeni",
           String(row.name || "—"),
@@ -306,10 +408,10 @@ export function SubmissionsTable<T extends Row>({
           schoolName,
           String(row.grade || "—"),
           row.experience ? `${row.experience} konferans` : "0",
-          String(row.awards || "—"),
-          committeeName(choices[0] || ""),
-          committeeName(choices[1] || ""),
-          committeeName(choices[2] || ""),
+          awardsOrEvents,
+          choice1,
+          rawType === "admin" ? "—" : committeeName(choices[1] || ""),
+          rawType === "admin" ? "—" : committeeName(choices[2] || ""),
           String(row.address || "—"),
           String(row.motivation || "—"),
         ];
@@ -320,17 +422,18 @@ export function SubmissionsTable<T extends Row>({
       // EXCEL İÇİN ÖZEL GENİŞ SÜTUN ARALIKLARI (EXCELDE AÇILDIĞINDA ASLA DAR KALMAZ)
       ws["!cols"] = [
         { wch: 8 },   // Sıra
+        { wch: 18 },  // Başvuru Türü (Delege / Chair / Admin)
         { wch: 22 },  // Kayıt Tarihi
         { wch: 16 },  // Durum
         { wch: 32 },  // Ad Soyad (Ultra Geniş)
         { wch: 22 },  // Telefon (Ferah)
         { wch: 36 },  // E-posta (Geniş)
         { wch: 20 },  // Şehir
-        { wch: 52 },  // Okul Adı (Devasa Genişlik - en uzun lise isimleri bile tek satıra sığar)
+        { wch: 52 },  // Okul Adı (Devasa Genişlik)
         { wch: 14 },  // Sınıf
-        { wch: 20 },  // Geçmiş Deneyim
-        { wch: 30 },  // Varsa Ödüller (Geniş)
-        { wch: 32 },  // 1. Tercih Komite (Tam Komite Adı sığar)
+        { wch: 22 },  // Geçmiş Deneyim Sayısı
+        { wch: 45 },  // Katılınan Çalıştay/MUN ve Ödüller (Geniş)
+        { wch: 34 },  // 1. Tercih Komite / Departman
         { wch: 32 },  // 2. Tercih Komite
         { wch: 32 },  // 3. Tercih Komite
         { wch: 70 },  // Açık Ev Adresi (Çok Geniş)
@@ -447,6 +550,8 @@ export function SubmissionsTable<T extends Row>({
             ? `${row.schoolOther} (Diğer)`
             : String(row.school || row.schoolOther || "");
 
+        const isRowAdmin =
+          String(row.applicantType ?? "delege").toLowerCase() === "admin";
         const line = [
           i + 1,
           row.createdAt ? dateFormat.format(row.createdAt) : "—",
@@ -458,10 +563,10 @@ export function SubmissionsTable<T extends Row>({
           clean(schoolName),
           clean(row.grade || "—"),
           clean(row.experience ? `${row.experience} konferans` : "0"),
-          clean(row.awards || "—"),
-          clean(committeeName(choices[0] || "")),
-          clean(committeeName(choices[1] || "")),
-          clean(committeeName(choices[2] || "")),
+          clean(row.pastConferencesAndAwards || row.awards || "—"),
+          clean(isRowAdmin ? "—" : committeeName(choices[0] || "")),
+          clean(isRowAdmin ? "—" : committeeName(choices[1] || "")),
+          clean(isRowAdmin ? "—" : committeeName(choices[2] || "")),
           clean(row.address),
           clean(row.motivation),
         ];
@@ -614,6 +719,44 @@ export function SubmissionsTable<T extends Row>({
               </button>
             ))}
           </div>
+
+          {/* Başvuru Türü Filtresi (Delege, Chair, Admin) */}
+          {isDelegate && (
+            <div className="inline-flex rounded-lg border border-border bg-white/[0.03] p-1">
+              {(["hepsi", "delege", "chair", "admin"] as const).map((rKey) => {
+                const count =
+                  rKey === "hepsi"
+                    ? rows.length
+                    : rows.filter(
+                        (r) =>
+                          String(r.applicantType ?? "delege").toLowerCase() ===
+                          rKey,
+                      ).length;
+                return (
+                  <button
+                    key={rKey}
+                    type="button"
+                    onClick={() => setRoleFilter(rKey)}
+                    className={cn(
+                      "rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors",
+                      roleFilter === rKey
+                        ? "bg-accent/20 text-accent shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {rKey === "hepsi"
+                      ? "Tüm Roller"
+                      : rKey === "chair"
+                        ? "Chair"
+                        : rKey === "admin"
+                          ? "Admin"
+                          : "Delege"}
+                    <span className="ml-1.5 opacity-60">({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* Komite Filtresi */}
           {isDelegate && (
@@ -822,6 +965,24 @@ export function SubmissionsTable<T extends Row>({
               </div>
             )}
           </div>
+
+          {/* Toplu Silme Butonu */}
+          {filtered.length > 0 && (
+            <button
+              type="button"
+              onClick={deleteAllSubmissions}
+              title="Gösterilen başvuruları kalıcı olarak sil"
+              className="inline-flex h-9.5 items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 text-[12.5px] font-semibold text-rose-400 transition-colors hover:bg-rose-500/20"
+            >
+              <Trash2 className="size-3.5" />
+              <span className="hidden sm:inline">
+                {filtered.length === rows.length
+                  ? "Tümünü Sil"
+                  : `Filtrelenenleri Sil (${filtered.length})`}
+              </span>
+              <span className="sm:hidden">Sil</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -952,10 +1113,16 @@ export function SubmissionsTable<T extends Row>({
 
               <tbody className="divide-y divide-border/60">
                 {filtered.map((row, index) => {
+                  const isRowAdmin =
+                    String(row.applicantType).toLowerCase() === "admin";
                   const choices = Array.isArray(row.choices)
                     ? (row.choices as string[])
                     : [];
-                  const c1 = choices[0] ? committeeName(choices[0]) : "—";
+                  const c1 = isRowAdmin
+                    ? "—"
+                    : choices[0] && choices[0] !== "Admin"
+                      ? committeeName(choices[0])
+                      : "—";
                   const schoolName =
                     row.school === "Diğer" && row.schoolOther
                       ? `${row.schoolOther} (Diğer)`
@@ -977,8 +1144,24 @@ export function SubmissionsTable<T extends Row>({
 
                       {/* Ad Soyad */}
                       <td style={{ width: colWidths.name }} className="px-4 py-3.5">
-                        <div className="font-semibold text-foreground text-[13.5px] truncate">
-                          {String(row.name ?? row.person ?? "—")}
+                        <div className="flex items-center gap-1.5">
+                          {isDelegate && (
+                            <span
+                              className={cn(
+                                "rounded px-1.5 py-0.5 text-[10px] font-bold border shrink-0",
+                                String(row.applicantType).toLowerCase() === "chair"
+                                  ? "border-amber-500/30 bg-amber-500/15 text-amber-400"
+                                  : String(row.applicantType).toLowerCase() === "admin"
+                                    ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-400"
+                                    : "border-blue-500/30 bg-blue-500/15 text-blue-400",
+                              )}
+                            >
+                              {String(row.applicantType ?? "delege").toUpperCase()}
+                            </span>
+                          )}
+                          <span className="font-semibold text-foreground text-[13.5px] truncate">
+                            {String(row.name ?? row.person ?? "—")}
+                          </span>
                         </div>
                         <div className="text-[11.5px] text-muted-foreground">
                           {row.createdAt
@@ -1001,9 +1184,13 @@ export function SubmissionsTable<T extends Row>({
                       {/* 1. Tercih Komite */}
                       {isDelegate && (
                         <td style={{ width: colWidths.committee }} className="px-4 py-3.5">
-                          <span className="inline-flex max-w-full truncate items-center rounded-md border border-accent/20 bg-accent/10 px-2.5 py-0.5 text-[12px] font-medium text-accent">
-                            {c1}
-                          </span>
+                          {isRowAdmin || c1 === "—" ? (
+                            <span className="text-[12px] text-muted-foreground/60">—</span>
+                          ) : (
+                            <span className="inline-flex max-w-full truncate items-center rounded-md border border-accent/20 bg-accent/10 px-2.5 py-0.5 text-[12px] font-medium text-accent">
+                              {c1}
+                            </span>
+                          )}
                         </td>
                       )}
 
@@ -1039,19 +1226,35 @@ export function SubmissionsTable<T extends Row>({
                         </div>
                       </td>
 
-                      {/* Detay Butonu */}
+                      {/* İşlem Butonları */}
                       <td style={{ width: colWidths.actions }} className="px-4 py-3.5 text-right">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedRow(row);
-                          }}
-                          className="inline-flex items-center gap-1 rounded-md border border-border bg-white/5 px-2.5 py-1 text-[11.5px] text-muted-foreground transition-colors hover:border-accent hover:text-accent"
-                        >
-                          İncele
-                          <ChevronRight className="size-3" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRow(row);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-white/5 px-2.5 py-1 text-[11.5px] text-muted-foreground transition-colors hover:border-accent hover:text-accent"
+                          >
+                            İncele
+                            <ChevronRight className="size-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteSubmission(
+                                row.id as string,
+                                String(row.name ?? row.person ?? "")
+                              );
+                            }}
+                            title="Başvuruyu kalıcı olarak sil"
+                            className="inline-flex size-7 items-center justify-center rounded-md border border-border bg-white/5 text-muted-foreground transition-colors hover:border-rose-500 hover:text-rose-400 hover:bg-rose-500/10"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1149,6 +1352,20 @@ export function SubmissionsTable<T extends Row>({
               >
                 <Clock className="size-3.5" />
                 Beklemeye Al
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  deleteSubmission(
+                    selectedRow.id,
+                    String(selectedRow.name ?? selectedRow.person ?? "")
+                  )
+                }
+                className="inline-flex items-center gap-1.5 rounded-md border border-rose-500/30 px-3 py-1.5 text-[12px] font-semibold text-rose-400 hover:bg-rose-500/10 sm:ml-auto"
+              >
+                <Trash2 className="size-3.5" />
+                Başvuruyu Sil
               </button>
             </div>
 
@@ -1255,42 +1472,63 @@ export function SubmissionsTable<T extends Row>({
               {isDelegate && (
                 <div className="rounded-xl border border-border bg-white/[0.02] p-4">
                   <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                    Komite Tercihleri & Deneyim
+                    {String(selectedRow.applicantType).toLowerCase() === "admin"
+                      ? "Görev Alanı & Deneyim"
+                      : String(selectedRow.applicantType).toLowerCase() === "chair"
+                        ? "Yönetmek İstediği Komiteler & Deneyim"
+                        : "Komite Tercihleri & Deneyim"}
                   </div>
-                  {Array.isArray(selectedRow.choices) && (
-                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                      {(selectedRow.choices as string[]).map((cId, idx) => (
-                        <div
-                          key={cId}
-                          className="rounded-lg border border-border bg-card p-2.5"
-                        >
-                          <span className="text-[11px] text-muted-foreground">
-                            {idx + 1}. Tercih
-                          </span>
-                          <div className="font-semibold text-accent">
-                            {committeeName(cId)}
-                          </div>
-                        </div>
-                      ))}
+
+                  {String(selectedRow.applicantType).toLowerCase() === "admin" ? (
+                    <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-[13px] font-medium text-emerald-300">
+                      İdari Ekip (Admin) — Çalıştay oturum düzeni ve salon akışında görev alır (Komite seçimi bulunmamaktadır).
                     </div>
+                  ) : (
+                    Array.isArray(selectedRow.choices) && (
+                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                        {(selectedRow.choices as string[])
+                          .filter((cId) => cId && cId !== "Admin")
+                          .map((cId, idx) => (
+                            <div
+                              key={cId}
+                              className="rounded-lg border border-border bg-card p-2.5"
+                            >
+                              <span className="text-[11px] text-muted-foreground">
+                                {idx + 1}. Tercih
+                              </span>
+                              <div className="font-semibold text-accent">
+                                {committeeName(cId)}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    )
                   )}
 
                   <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-[12.5px] text-muted-foreground">
                     <div>
-                      Geçmiş Konferans / MUN Deneyimi:{" "}
+                      Geçmiş Çalıştay / MUN Sayısı:{" "}
                       <strong className="text-foreground">
                         {String(selectedRow.experience ?? "0")} adet
                       </strong>
                     </div>
-                    {Boolean(selectedRow.awards) && (
-                      <div>
-                        Aldığı Ödüller:{" "}
-                        <strong className="text-accent">
-                          {String(selectedRow.awards)}
-                        </strong>
-                      </div>
-                    )}
                   </div>
+
+                  {Boolean(
+                    selectedRow.pastConferencesAndAwards || selectedRow.awards,
+                  ) && (
+                    <div className="mt-3 rounded-lg border border-accent/25 bg-accent/5 p-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-accent">
+                        Daha Önce Katıldığı Çalıştay / MUN İsimleri ve Aldığı Ödüller:
+                      </div>
+                      <p className="mt-1.5 whitespace-pre-wrap text-[13px] font-medium leading-relaxed text-foreground">
+                        {String(
+                          selectedRow.pastConferencesAndAwards ||
+                            selectedRow.awards,
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -37,6 +37,16 @@ const committeeName = (id: string) =>
 type AnyRow = Record<string, unknown>;
 
 const delegateColumns: Column<AnyRow & { id: string }>[] = [
+  {
+    key: "applicantType",
+    label: "Başvuru Türü",
+    value: (r) => {
+      const type = String(r.applicantType ?? "delege").toLowerCase();
+      if (type === "chair") return "Chair";
+      if (type === "admin") return "Admin";
+      return "Delege";
+    },
+  },
   { key: "name", label: "Ad Soyad", value: (r) => String(r.name ?? "") },
   {
     key: "school",
@@ -53,10 +63,15 @@ const delegateColumns: Column<AnyRow & { id: string }>[] = [
   {
     key: "choices",
     label: "Tercihler",
-    value: (r) =>
-      Array.isArray(r.choices)
+    value: (r) => {
+      const type = String(r.applicantType ?? "delege").toLowerCase();
+      if (type === "admin") {
+        return "Admin Ekibi";
+      }
+      return Array.isArray(r.choices)
         ? (r.choices as string[]).map(committeeName).join(" → ")
-        : "",
+        : "";
+    },
     hideOnMobile: true,
   },
   { key: "phone", label: "Telefon", value: (r) => String(r.phone ?? "") },
@@ -64,11 +79,17 @@ const delegateColumns: Column<AnyRow & { id: string }>[] = [
   { key: "grade", label: "Sınıf", value: (r) => String(r.grade ?? "—"), detailOnly: true },
   {
     key: "experience",
-    label: "Geçmiş Deneyim",
+    label: "Geçmiş Deneyim Sayısı",
     value: (r) => {
       const exp = String(r.experience ?? "0");
       return `${exp} konferans/çalıştay`;
     },
+    detailOnly: true,
+  },
+  {
+    key: "pastConferencesAndAwards",
+    label: "Katılınan Çalıştay/MUN ve Ödüller",
+    value: (r) => String(r.pastConferencesAndAwards || r.awards || "—"),
     detailOnly: true,
   },
   { key: "address", label: "Açık Adres", value: (r) => String(r.address ?? ""), detailOnly: true },

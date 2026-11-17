@@ -1,13 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Send, CheckCircle2 } from "lucide-react";
+import {
+  Send,
+  CheckCircle2,
+  Users,
+  Award,
+  ShieldCheck,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Reveal } from "@/components/fx/reveal";
 import { SectionHeading } from "./section-heading";
 import { ClosedNotice } from "./closed-notice";
 import { useSettings } from "@/components/providers/settings-provider";
-import { submitApplication, type SubmitResult } from "@/lib/submissions";
+import {
+  submitApplication,
+  type ApplicantType,
+  type SubmitResult,
+} from "@/lib/submissions";
 import { cn } from "@/lib/utils";
 import { event } from "@/constants/event";
 import { committees } from "@/constants/committees";
@@ -48,6 +58,36 @@ const GRADE_OPTIONS = [
   "Mezun",
 ] as const;
 
+const APPLICANT_TYPES: {
+  id: ApplicantType;
+  label: string;
+  badge: string;
+  desc: string;
+  icon: typeof Users;
+}[] = [
+  {
+    id: "delege",
+    label: "Delege",
+    badge: "Katılımcı",
+    desc: "Komitelerde delege olarak yer alır, müzakerelere katılır ve çözüm önergeleri üretir.",
+    icon: Users,
+  },
+  {
+    id: "chair",
+    label: "Chair",
+    badge: "Komite Başkanı",
+    desc: "Komite oturumlarını yönetir, akademik tartışmaları ve raporlama sürecini koordine eder.",
+    icon: Award,
+  },
+  {
+    id: "admin",
+    label: "Admin",
+    badge: "İdari Ekip",
+    desc: "Çalıştay süresince oturum düzeni, salon akışı ve idari işleyişte görev alır.",
+    icon: ShieldCheck,
+  },
+];
+
 const MIN_MOTIVATION = 80;
 
 /** Telefon formatlama: (5XX) XXX XX XX */
@@ -69,6 +109,7 @@ export function Apply() {
   const { settings, loading } = useSettings();
 
   // Form State
+  const [applicantType, setApplicantType] = useState<ApplicantType>("delege");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -78,7 +119,7 @@ export function Apply() {
   const [grade, setGrade] = useState("");
   const [address, setAddress] = useState("");
   const [experience, setExperience] = useState<Experience>("0");
-  const [awards, setAwards] = useState("");
+  const [pastConferencesAndAwards, setPastConferencesAndAwards] = useState("");
   const [choices, setChoices] = useState({ c1: "", c2: "", c3: "" });
   const [motivation, setMotivation] = useState("");
 
@@ -89,6 +130,7 @@ export function Apply() {
     name: string;
     email: string;
     date: string;
+    role?: string;
   } | null>(null);
 
   // Tarayıcı yerel hafızasından önceki başvuruyu kontrol et (localStorage)
@@ -103,11 +145,6 @@ export function Apply() {
     }
   }, []);
 
-  /**
-   * Başvuru Firestore'a yazılır.
-   * Firebase yapılandırılmamışsa veya geçici bir ağ aksamasında
-   * `submitApplication` false döner ve e-posta taslağına yönlendirir.
-   */
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (sending) return;
@@ -136,9 +173,12 @@ export function Apply() {
     if (trimmedAddress.length < 10)
       next.address = "Lütfen açık adresinizi mahalle/cadde/bina no ile yazın.";
 
-    if (!choices.c1) next.choice1 = "1. komite tercihinizi yapın.";
-    if (!choices.c2) next.choice2 = "2. komite tercihinizi yapın.";
-    if (!choices.c3) next.choice3 = "3. komite tercihinizi yapın.";
+    // Delege ve Chair için komite seçimleri zorunludur; Admin için komite seçilmez
+    if (applicantType !== "admin") {
+      if (!choices.c1) next.choice1 = "1. komite tercihinizi yapın.";
+      if (!choices.c2) next.choice2 = "2. komite tercihinizi yapın.";
+      if (!choices.c3) next.choice3 = "3. komite tercihinizi yapın.";
+    }
 
     if (trimmedMotivation.length < MIN_MOTIVATION) {
       next.motivation = `Motivasyon metniniz en az ${MIN_MOTIVATION} karakter olmalı (${trimmedMotivation.length}/${MIN_MOTIVATION}).`;
@@ -152,7 +192,11 @@ export function Apply() {
       return;
     }
 
-    const selectedCommittees = [choices.c1, choices.c2, choices.c3];
+    const effectiveChoices =
+      applicantType === "admin"
+        ? []
+        : [choices.c1, choices.c2, choices.c3];
+
     const committeeLabel = (id: string) =>
       committees.find((c) => c.id === id)?.name ?? id;
 
@@ -163,7 +207,6 @@ export function Apply() {
     setSending(true);
 
     try {
-      // 15 saniyelik timeout koruması
       const timeoutPromise = new Promise<SubmitResult>((_, reject) =>
         setTimeout(
           () => reject(new Error("Zaman aşımı: Sunucu yanıt vermedi.")),
@@ -172,6 +215,7 @@ export function Apply() {
       );
 
       const storePromise = submitApplication({
+        applicantType,
         name: trimmedName,
         email: trimmedEmail,
         phone: fullPhone,
@@ -181,8 +225,9 @@ export function Apply() {
         grade,
         address: trimmedAddress,
         experience,
-        awards: awards.trim(),
-        choices: selectedCommittees,
+        pastConferencesAndAwards: pastConferencesAndAwards.trim(),
+        awards: pastConferencesAndAwards.trim(),
+        choices: effectiveChoices,
         motivation: trimmedMotivation,
       });
 
@@ -193,11 +238,12 @@ export function Apply() {
           name: trimmedName,
           email: trimmedEmail,
           date: new Date().toLocaleDateString("tr-TR"),
+          role: applicantType,
         };
         try {
           localStorage.setItem("alcal27_applied", JSON.stringify(payload));
         } catch {
-          // localStorage kısıtlıysa sessizce geç
+          // ignore
         }
         setSavedApp(payload);
         setSent(true);
@@ -223,8 +269,16 @@ export function Apply() {
         return;
       }
 
-      // Firebase yapılandırılmamışsa veya kapalıysa e-posta yedeği
+      // E-posta yedeği
+      const roleLabel =
+        applicantType === "chair"
+          ? "Chair"
+          : applicantType === "admin"
+            ? "Admin"
+            : "Delege";
+
       const mailBody = [
+        `Başvuru Türü: ${roleLabel}`,
         `Ad Soyad: ${trimmedName}`,
         `E-posta: ${trimmedEmail}`,
         `Telefon: ${fullPhone}`,
@@ -232,20 +286,21 @@ export function Apply() {
         `Okul: ${effectiveSchool}`,
         `Sınıf: ${grade}`,
         `Geçmiş Deneyim: ${experience} konferans/çalıştay`,
-        awards.trim() ? `Varsa Ödüller: ${awards.trim()}` : "",
+        pastConferencesAndAwards.trim()
+          ? `Katılınan Çalıştay / MUN ve Ödüller: ${pastConferencesAndAwards.trim()}`
+          : "",
         `Açık Adres: ${trimmedAddress}`,
         "",
-        "Komite Tercihleri:",
-        `1. Tercih: ${committeeLabel(choices.c1)}`,
-        `2. Tercih: ${committeeLabel(choices.c2)}`,
-        `3. Tercih: ${committeeLabel(choices.c3)}`,
+        applicantType === "admin"
+          ? "Rol: Admin Ekibi"
+          : `Komite Tercihleri: 1. ${committeeLabel(choices.c1)} | 2. ${committeeLabel(choices.c2)} | 3. ${committeeLabel(choices.c3)}`,
         "",
         "Motivasyon Metni:",
         trimmedMotivation,
       ].join("\n");
 
       window.location.href = `mailto:${event.contact.email}?subject=${encodeURIComponent(
-        `[${event.shortName}] Delege Başvurusu — ${trimmedName}`,
+        `[${event.shortName}] ${roleLabel} Başvurusu — ${trimmedName}`,
       )}&body=${encodeURIComponent(mailBody)}`;
 
       toast.success("Başvuru taslağınız hazırlandı.", {
@@ -262,13 +317,20 @@ export function Apply() {
     }
   }
 
+  const roleTitle =
+    applicantType === "chair"
+      ? "Chair Başvurusu"
+      : applicantType === "admin"
+        ? "Admin Başvurusu"
+        : "Delege Başvurusu";
+
   return (
     <section id="basvuru" className="scroll-mt-20 px-5 py-20 sm:py-24 lg:px-8">
       <div className="mx-auto w-full max-w-3xl">
         <SectionHeading
           eyebrow="Başvuru"
-          title="Delege Başvurusu"
-          lead="Çalıştaya katılmak için formu eksiksiz doldurun. Başvurular organizasyon komitesi tarafından titizlikle değerlendirilecek ve sonuçlar e-posta ile bildirilecektir."
+          title={roleTitle}
+          lead="Çalıştayımıza katılmak için formu eksiksiz doldurun. Delege, Chair ve Admin başvuruları organizasyon komitemiz tarafından titizlikle değerlendirilip sonuçlar e-posta ile iletilecektir."
         />
 
         <Reveal className="mt-10">
@@ -280,7 +342,7 @@ export function Apply() {
               note={settings.applicationsClosedNote}
             />
           ) : sent || savedApp ? (
-            <div className="rounded-lg border border-accent/40 bg-card p-8 text-center sm:p-12 shadow-lg">
+            <div className="rounded-2xl border border-accent/40 bg-card p-8 text-center sm:p-12 shadow-lg">
               <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-accent/15 text-accent">
                 <CheckCircle2 className="size-8" />
               </div>
@@ -313,7 +375,7 @@ export function Apply() {
                   setSchool("");
                   setSchoolOther("");
                   setAddress("");
-                  setAwards("");
+                  setPastConferencesAndAwards("");
                   setMotivation("");
                   setChoices({ c1: "", c2: "", c3: "" });
                 }}
@@ -326,13 +388,105 @@ export function Apply() {
             <form
               onSubmit={handleSubmit}
               noValidate
-              className="card-sheen rounded-lg border border-border bg-card p-6 sm:p-8"
+              className="card-sheen rounded-2xl border border-border bg-card p-6 sm:p-9 shadow-xl"
             >
-              {/* ADIM 1: KİŞİSEL BİLGİLER */}
+              {/* ========================================================= */}
+              {/* BAŞVURU TÜRÜ (DELEGE, CHAIR, ADMIN)                       */}
+              {/* ========================================================= */}
+              <div className="mb-9 border-b border-border pb-8">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-accent/15 text-[11px] font-bold text-accent">
+                    ★
+                  </span>
+                  <h3 className="text-[15px] font-bold tracking-tight text-foreground sm:text-base">
+                    Başvuru Türü
+                  </h3>
+                </div>
+                <p className="mt-1 text-[13px] text-muted-foreground">
+                  Çalıştayımıza hangi rolde katılmak istediğinizi seçiniz.
+                </p>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  {APPLICANT_TYPES.map((t) => {
+                    const isSelected = applicantType === t.id;
+                    const Icon = t.icon;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setApplicantType(t.id);
+                          setErrors({});
+                        }}
+                        className={cn(
+                          "group relative flex flex-col justify-between rounded-xl border p-4 text-left transition-all duration-200",
+                          isSelected
+                            ? "border-accent bg-accent/15 text-foreground shadow-md shadow-accent/10 ring-1 ring-accent"
+                            : "border-border bg-white/4 text-muted-foreground hover:border-accent/40 hover:bg-white/8 hover:text-foreground",
+                        )}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span
+                              className={cn(
+                                "grid size-9 place-items-center rounded-lg transition-colors",
+                                isSelected
+                                  ? "bg-accent text-background"
+                                  : "bg-white/5 text-muted-foreground group-hover:text-foreground",
+                              )}
+                            >
+                              <Icon className="size-4.5" />
+                            </span>
+                            <span
+                              className={cn(
+                                "rounded-full px-2 py-0.5 text-[10.5px] font-semibold",
+                                isSelected
+                                  ? "border border-accent/40 bg-accent/20 text-accent"
+                                  : "border border-border bg-white/5 text-muted-foreground",
+                              )}
+                            >
+                              {t.badge}
+                            </span>
+                          </div>
+
+                          <h4 className="mt-3 text-[15px] font-bold text-foreground">
+                            {t.label}
+                          </h4>
+                          <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+                            {t.desc}
+                          </p>
+                        </div>
+
+                        <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold">
+                          <span
+                            className={cn(
+                              "size-2 rounded-full",
+                              isSelected ? "bg-accent" : "bg-white/20",
+                            )}
+                          />
+                          <span
+                            className={
+                              isSelected
+                                ? "font-bold text-accent"
+                                : "text-muted-foreground"
+                            }
+                          >
+                            {isSelected ? "Seçildi" : "Seç"}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ========================================================= */}
+              {/* ADIM 1: KİŞİSEL BİLGİLER                                   */}
+              {/* ========================================================= */}
               <Step
                 no="01"
                 title="Kişisel Bilgiler"
-                detail="İletişim ve okul bilgilerinizi eksiksiz doldurun."
+                detail="İletişim ve okul bilgilerinizi eksiksiz doldurunuz."
               />
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -392,7 +546,7 @@ export function Apply() {
                       errors.phone && "border-destructive",
                     )}
                   >
-                    <span className="inline-flex items-center rounded-l-md border-r border-input bg-white/[0.04] px-3 text-[13.5px] font-semibold text-accent select-none">
+                    <span className="inline-flex select-none items-center rounded-l-md border-r border-input bg-white/[0.04] px-3 text-[13.5px] font-semibold text-accent">
                       +90
                     </span>
                     <input
@@ -431,7 +585,7 @@ export function Apply() {
                   {errors.city && <FieldError>{errors.city}</FieldError>}
                 </div>
 
-                {/* Okul Seçimi (Aramalı ve Akıllı Seçici) */}
+                {/* Okul Seçimi */}
                 <div className="sm:col-span-2">
                   <label
                     htmlFor="school"
@@ -456,11 +610,9 @@ export function Apply() {
                   )}
                 </div>
 
-                {/* Sınıf (Tek Tıkla Seçim Butonları - Asla Bembeyaz Açılır Kutu Yok) */}
+                {/* Sınıf */}
                 <div className="sm:col-span-2">
-                  <label
-                    className="text-[13px] font-medium text-foreground"
-                  >
+                  <label className="text-[13px] font-medium text-foreground">
                     Sınıf <span className="text-accent">*</span>
                   </label>
                   <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6">
@@ -510,66 +662,79 @@ export function Apply() {
                 {errors.address && <FieldError>{errors.address}</FieldError>}
               </div>
 
-              {/* ADIM 2: KOMİTE TERCİHLERİ */}
-              <fieldset className="mt-9 border-t border-border pt-7">
-                <legend className="sr-only">Komite tercihleri</legend>
+              {/* ========================================================= */}
+              {/* ADIM 2: KOMİTE TERCİHLERİ (DELEGE & CHAIR İÇİN)             */}
+              {/* ========================================================= */}
+              {applicantType !== "admin" && (
+                <fieldset className="mt-9 border-t border-border pt-7">
+                  <legend className="sr-only">Tercihler</legend>
+                  <Step
+                    no="02"
+                    title={
+                      applicantType === "chair"
+                        ? "Yönetmek İstediğiniz Komiteler"
+                        : "Komite Tercihleriniz"
+                    }
+                    required
+                    detail={
+                      applicantType === "chair"
+                        ? "Chair (Komite Başkanı) olarak oturumlarını yönetmek istediğiniz 3 farklı komiteyi öncelik sıranıza göre seçiniz."
+                        : "Lütfen delege olarak katılmak istediğiniz 3 farklı komiteyi öncelik sıranıza göre seçiniz."
+                    }
+                  />
 
-                <Step
-                  no="02"
-                  title="Komite Tercihleriniz"
-                  required
-                  detail="Lütfen öncelik sıranıza göre 3 farklı komite seçiniz. Bir komite yalnızca tek bir sırada seçilebilir."
-                />
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {(["c1", "c2", "c3"] as const).map((slot, i) => {
+                      const errorMsg =
+                        i === 0
+                          ? errors.choice1
+                          : i === 1
+                            ? errors.choice2
+                            : errors.choice3;
 
-                <div className="grid gap-4 sm:grid-cols-3">
-                  {(["c1", "c2", "c3"] as const).map((slot, i) => {
-                    const errorMsg =
-                      i === 0
-                        ? errors.choice1
-                        : i === 1
-                          ? errors.choice2
-                          : errors.choice3;
+                      const disabledIds = [
+                        slot !== "c1" ? choices.c1 : "",
+                        slot !== "c2" ? choices.c2 : "",
+                        slot !== "c3" ? choices.c3 : "",
+                      ].filter(Boolean);
 
-                    const disabledIds = [
-                      slot !== "c1" ? choices.c1 : "",
-                      slot !== "c2" ? choices.c2 : "",
-                      slot !== "c3" ? choices.c3 : "",
-                    ].filter(Boolean);
-
-                    return (
-                      <div key={slot}>
-                        <label className="text-[12.5px] font-medium text-muted-foreground">
-                          {i + 1}. Tercih <span className="text-accent">*</span>
-                        </label>
-                        <div className="mt-1.5">
-                          <CommitteeSelect
-                            slotLabel={`${i + 1}. Tercih`}
-                            value={choices[slot]}
-                            onChange={(id) =>
-                              setChoices((prev) => ({
-                                ...prev,
-                                [slot]: id,
-                              }))
-                            }
-                            disabledIds={disabledIds}
-                            error={errorMsg}
-                          />
+                      return (
+                        <div key={slot}>
+                          <label className="text-[12.5px] font-medium text-muted-foreground">
+                            {i + 1}. Tercih <span className="text-accent">*</span>
+                          </label>
+                          <div className="mt-1.5">
+                            <CommitteeSelect
+                              slotLabel={`${i + 1}. Tercih`}
+                              value={choices[slot]}
+                              onChange={(id) =>
+                                setChoices((prev) => ({
+                                  ...prev,
+                                  [slot]: id,
+                                }))
+                              }
+                              disabledIds={disabledIds}
+                              error={errorMsg}
+                            />
+                          </div>
+                          {errorMsg && <FieldError>{errorMsg}</FieldError>}
                         </div>
-                        {errorMsg && <FieldError>{errorMsg}</FieldError>}
-                      </div>
-                    );
-                  })}
-                </div>
-              </fieldset>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              )}
 
-              {/* ADIM 3: GEÇMİŞ DENEYİMLER */}
+              {/* ========================================================= */}
+              {/* GEÇMİŞ DENEYİM VE ÖDÜLLER                                  */}
+              {/* ========================================================= */}
               <fieldset className="mt-9 border-t border-border pt-7">
-                <legend className="sr-only">Deneyim</legend>
+                <legend className="sr-only">Deneyim ve Ödüller</legend>
 
                 <Step
-                  no="03"
-                  title="Geçmiş Deneyiminiz"
-                  detail="Daha önce katıldığınız çalıştay, MUN veya gençlik konferansı sayısı."
+                  no={applicantType === "admin" ? "02" : "03"}
+                  title="Geçmiş Deneyim ve Ödüller"
+                  detail="Daha önce katıldığınız çalıştay veya MUN sayısı ve tecrübeleriniz."
                 />
 
                 <div className="grid grid-cols-5 gap-2 sm:flex sm:flex-wrap">
@@ -591,39 +756,53 @@ export function Apply() {
                   ))}
                 </div>
 
-                {/* Varsa Ödüller */}
+                {/* DAHA ÖNCE KATILDIĞINIZ ÇALIŞTAY / MUN İSİMLERİ VE ALDIĞINIZ ÖDÜLLER */}
                 <div className="mt-5">
                   <label
-                    htmlFor="awards"
+                    htmlFor="pastConferencesAndAwards"
                     className="text-[13px] font-medium text-foreground"
                   >
-                    Varsa Aldığınız Ödüller{" "}
+                    Daha önce katıldığınız çalıştay / MUN isimleri ve aldığınız ödüller{" "}
                     <span className="text-[12px] font-normal text-muted-foreground">
                       (Opsiyonel)
                     </span>
                   </label>
-                  <input
-                    id="awards"
-                    name="awards"
-                    type="text"
-                    value={awards}
-                    onChange={(e) => setAwards(e.target.value)}
-                    placeholder="Örn: En İyi Delege (Best Delegate), Mansiyon (Honorable Mention)..."
-                    className="mt-2 h-11 w-full rounded-md border border-input bg-white/5 px-3.5 text-[14px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                  <textarea
+                    id="pastConferencesAndAwards"
+                    name="pastConferencesAndAwards"
+                    rows={3}
+                    value={pastConferencesAndAwards}
+                    onChange={(e) => setPastConferencesAndAwards(e.target.value)}
+                    placeholder="Örn: HASAL'24 (Best Delegate), KFLMUN'23 (Outstanding Delegate), ALÇAL'25 (Delege / Chair / Admin)..."
+                    className="mt-2 w-full resize-none rounded-md border border-input bg-white/5 px-3.5 py-2.5 text-[14px] leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-ring focus:ring-2 focus:ring-ring/20"
                   />
                   <p className="mt-1 text-[11.5px] text-muted-foreground">
-                    Daha önce katıldığınız konferans veya çalıştaylarda aldığınız ödüller varsa belirtebilirsiniz.
+                    Daha önce katıldığınız çalıştay veya MUN konferanslarının isimlerini ve varsa kazandığınız ödülleri belirtebilirsiniz.
                   </p>
                 </div>
               </fieldset>
 
-              {/* ADIM 4: MOTİVASYON */}
+              {/* ========================================================= */}
+              {/* MOTİVASYON METNİ                                           */}
+              {/* ========================================================= */}
               <div className="mt-9 border-t border-border pt-7">
                 <Step
-                  no="04"
-                  title="Motivasyon Metniniz"
+                  no={applicantType === "admin" ? "03" : "04"}
+                  title={
+                    applicantType === "chair"
+                      ? "Chair Motivasyon Metniniz"
+                      : applicantType === "admin"
+                        ? "Admin Motivasyon Metniniz"
+                        : "Motivasyon Metniniz"
+                  }
                   required
-                  detail="Neden bu çalıştaya katılmak istiyorsunuz? Tercih ettiğiniz komiteler hakkında ne düşünüyorsunuz ve çalıştaya nasıl bir katkı sunmayı hedefliyorsunuz?"
+                  detail={
+                    applicantType === "chair"
+                      ? "Neden ALÇAL'27'de Chair (Komite Başkanı) olmak istiyorsunuz? Oturum yönetimi deneyiminiz ve komite vizyonunuzdan bahsediniz."
+                      : applicantType === "admin"
+                        ? "Neden ALÇAL'27 İdari Ekibinde (Admin) yer almak istiyorsunuz? Çalıştay işleyişine nasıl katkı sağlarsınız?"
+                        : "Neden bu çalıştaya katılmak istiyorsunuz? Tercih ettiğiniz komiteler hakkında ne düşünüyorsunuz ve çalıştaya nasıl bir katkı sunmayı hedefliyorsunuz?"
+                  }
                   htmlFor="motivation"
                 />
                 <textarea
@@ -632,7 +811,7 @@ export function Apply() {
                   rows={5}
                   value={motivation}
                   onChange={(e) => setMotivation(e.target.value)}
-                  placeholder="Kendinizi tanıtın ve çalıştaya katılım amacınızı açıklayın..."
+                  placeholder="Kendinizi tanıtınız ve çalıştaya katılım amacınızı açıklayınız..."
                   aria-invalid={Boolean(errors.motivation)}
                   className="mt-2 w-full resize-none rounded-md border border-input bg-white/5 px-3.5 py-2.5 text-[14px] leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-ring focus:ring-2 focus:ring-ring/20 aria-invalid:border-destructive"
                 />
@@ -654,25 +833,29 @@ export function Apply() {
               </div>
 
               {/* GÖNDER BUTONU */}
-              <button
-                type="submit"
-                disabled={sending}
-                className="group mt-8 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:bg-primary/90 hover:glow-primary disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-8"
-              >
-                {sending ? "Başvuru Kaydediliyor…" : "Başvuruyu Gönder"}
-                <Send className="size-4 transition-transform duration-300 group-hover:translate-x-0.5" />
-              </button>
+              <div className="mt-9 flex flex-col items-center gap-3 border-t border-border pt-7 sm:flex-row sm:justify-between">
+                <p className="text-center text-[12px] text-muted-foreground sm:text-left">
+                  Formu göndererek verilerinizin çalıştay organizasyonu
+                  kapsamında işlenmesini kabul etmiş olursunuz.
+                </p>
 
-              <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
-                Sorularınız veya teknik destek için{" "}
-                <a
-                  href={`mailto:${event.contact.email}`}
-                  className="text-foreground underline underline-offset-2 hover:text-accent"
+                <button
+                  type="submit"
+                  disabled={sending}
+                  className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[14px] font-semibold text-primary-foreground transition-all hover:bg-primary/90 hover:glow-primary disabled:opacity-50 sm:w-auto"
                 >
-                  {event.contact.email}
-                </a>{" "}
-                adresine yazabilirsiniz.
-              </p>
+                  <Send className="size-4" />
+                  <span>
+                    {sending
+                      ? "Gönderiliyor..."
+                      : applicantType === "chair"
+                        ? "Chair Başvurusunu Gönder"
+                        : applicantType === "admin"
+                          ? "Admin Başvurusunu Gönder"
+                          : "Delege Başvurusunu Gönder"}
+                  </span>
+                </button>
+              </div>
             </form>
           )}
         </Reveal>
@@ -681,7 +864,6 @@ export function Apply() {
   );
 }
 
-/** Form içindeki numaralı adım başlığı */
 function Step({
   no,
   title,
@@ -695,24 +877,27 @@ function Step({
   required?: boolean;
   htmlFor?: string;
 }) {
-  const Heading = htmlFor ? "label" : "p";
-
   return (
     <div className="mb-4">
-      <div className="flex items-center gap-2.5">
-        <span className="tnum grid size-6 shrink-0 place-items-center rounded border border-border bg-white/5 text-[11px] font-semibold text-accent">
-          {no}
-        </span>
-        <Heading
-          {...(htmlFor ? { htmlFor } : {})}
-          className="text-[14px] font-semibold text-foreground"
-        >
-          {title} {required && <span className="text-accent">*</span>}
-        </Heading>
+      <div className="flex items-baseline gap-2">
+        <span className="tnum text-xs font-semibold text-accent">{no}</span>
+        {htmlFor ? (
+          <label
+            htmlFor={htmlFor}
+            className="text-[15px] font-semibold text-foreground cursor-pointer"
+          >
+            {title}
+            {required && <span className="text-accent ml-1">*</span>}
+          </label>
+        ) : (
+          <h4 className="text-[15px] font-semibold text-foreground">
+            {title}
+            {required && <span className="text-accent ml-1">*</span>}
+          </h4>
+        )}
       </div>
-
       {detail && (
-        <p className="mt-1.5 max-w-prose pl-[34px] text-[12.5px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
           {detail}
         </p>
       )}
@@ -722,7 +907,7 @@ function Step({
 
 function FieldError({ children }: { children: React.ReactNode }) {
   return (
-    <p role="alert" className="mt-1.5 text-[11.5px] text-destructive">
+    <p className="mt-1.5 text-[12px] text-destructive" role="alert">
       {children}
     </p>
   );

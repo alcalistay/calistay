@@ -9,6 +9,7 @@ import {
 import { getDb, paths } from "@/lib/firebase";
 
 export type ApplicationStatus = "yeni" | "kabul" | "red";
+export type ApplicantType = "delege" | "chair" | "admin";
 
 export type SubmitResult =
   | { success: true }
@@ -16,6 +17,7 @@ export type SubmitResult =
 
 export type DelegateApplication = {
   id: string;
+  applicantType?: ApplicantType;
   name: string;
   email: string;
   phone: string;
@@ -23,10 +25,11 @@ export type DelegateApplication = {
   schoolOther?: string;
   grade: string;
   city: string;
-  /** Delegenin kendi ev adresi. */
+  /** Başvuranın kendi ev adresi. */
   address: string;
   experience: string;
-  /** Varsa delegenin MUN/çalıştay ödülleri */
+  /** Daha önce katıldığınız çalıştay / MUN isimleri ve aldığınız ödüller */
+  pastConferencesAndAwards?: string;
   awards?: string;
   choices: string[];
   motivation: string;

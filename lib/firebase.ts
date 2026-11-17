@@ -1,6 +1,6 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, type Firestore } from "firebase/firestore";
 
 const config = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -20,6 +20,8 @@ const config = {
 export const firebaseEnabled = Boolean(config.apiKey && config.projectId);
 
 let app: FirebaseApp | null = null;
+let db: Firestore | null = null;
+let auth: Auth | null = null;
 
 function getFirebaseApp(): FirebaseApp | null {
   if (!firebaseEnabled) return null;
@@ -31,12 +33,28 @@ function getFirebaseApp(): FirebaseApp | null {
 
 export function getDb(): Firestore | null {
   const instance = getFirebaseApp();
-  return instance ? getFirestore(instance) : null;
+  if (!instance) return null;
+  if (!db) {
+    try {
+      // Tarayıcı ve yerel ağ kısıtlamalarını (adblocker, proxy, gRPC stream kesintileri)
+      // aşmak için HTTP long-polling kullanılır.
+      db = initializeFirestore(instance, {
+        experimentalForceLongPolling: true,
+      });
+    } catch {
+      db = getFirestore(instance);
+    }
+  }
+  return db;
 }
 
 export function getFirebaseAuth(): Auth | null {
   const instance = getFirebaseApp();
-  return instance ? getAuth(instance) : null;
+  if (!instance) return null;
+  if (!auth) {
+    auth = getAuth(instance);
+  }
+  return auth;
 }
 
 /** Firestore koleksiyon ve doküman yolları tek yerde. */

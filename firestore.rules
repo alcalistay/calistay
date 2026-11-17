@@ -31,15 +31,13 @@ service cloud.firestore {
     // Delege başvuruları (Telefon numarası bazlı tekil kayıt)
     match /applications/{docId} {
       allow create: if isValidApplication();
-      allow read, update: if isAdmin();
-      allow delete: if false;
+      allow read, update, delete: if isAdmin();
     }
 
     // Sponsorluk başvuruları
     match /sponsorRequests/{docId} {
       allow create: if isValidSponsorRequest();
-      allow read, update: if isAdmin();
-      allow delete: if false;
+      allow read, update, delete: if isAdmin();
     }
 
     // Formdan gelen kaydın beklenen alanları taşıdığını doğrular;
