@@ -273,3 +273,22 @@
   }
 }
 
+/* Ekibimiz sonsuz yavaş kayan slayt animasyonu */
+@keyframes team-slide {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-team-slide {
+  animation: team-slide 60s linear infinite;
+  will-change: transform;
+}
+
+.animate-team-slide:hover {
+  animation-play-state: paused;
+}
+

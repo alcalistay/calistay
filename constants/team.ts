@@ -74,13 +74,21 @@ export type TeamMember = {
  * Kural: Aynı departman başkanları (Akademi, Org, Staff) yan yana sıralanmıştır.
  */
 export const teamMembers: TeamMember[] = [
-  // 1. Genel Sekreter
+  // 1 & 2. Genel Sekreterlik
   {
     id: "ceylin-imdat",
     name: "Ceylin İmdat",
     role: "Genel Sekreter",
     department: "Genel Sekreterlik",
     image: "/team/ceylin-imdat-sg.png",
+    category: "leadership",
+  },
+  {
+    id: "gorkem-kuscu",
+    name: "Görkem Kuşçu",
+    role: "Genel Sekreter",
+    department: "Genel Sekreterlik",
+    image: "/team/gorkemkuscu-sg.png",
     category: "leadership",
   },
   // 2. Genel Direktörler
