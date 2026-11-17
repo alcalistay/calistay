@@ -51,12 +51,12 @@ export type TeamCategory =
   | "departments";
 
 export const teamCategories: { id: TeamCategory; label: string; count: number }[] = [
-  { id: "all", label: "Tüm Ekip", count: 14 },
-  { id: "leadership", label: "Genel Sekreterlik & Yönetim", count: 3 },
+  { id: "all", label: "Tüm Ekip", count: 16 },
+  { id: "leadership", label: "Genel Sekreterlik & Yönetim", count: 4 },
   { id: "akademi", label: "Akademi", count: 2 },
   { id: "organizasyon", label: "Organizasyon", count: 2 },
   { id: "staff", label: "Staff", count: 2 },
-  { id: "departments", label: "Departmanlar", count: 5 },
+  { id: "departments", label: "Departmanlar", count: 6 },
 ];
 
 export type TeamMember = {
@@ -209,6 +209,15 @@ export const teamMembers: TeamMember[] = [
     role: "Tasarım Başkanı",
     department: "Tasarım & Medya",
     image: "/team/nida-goc-tasarim.png",
+    category: "departments",
+  },
+  // 15. Halkla İlişkiler
+  {
+    id: "tanem-cizlakoglu",
+    name: "Tanem Cızlakoğlu",
+    role: "Halkla İlişkiler Başkanı",
+    department: "Halkla İlişkiler",
+    image: "/team/tanem-halk.png",
     category: "departments",
   },
 ];
