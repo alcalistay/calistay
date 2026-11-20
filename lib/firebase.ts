@@ -1,6 +1,6 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, initializeFirestore, type Firestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, setLogLevel, type Firestore } from "firebase/firestore";
 
 const config = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -18,6 +18,16 @@ const config = {
  * da geliştirme yapılabiliyor.
  */
 export const firebaseEnabled = Boolean(config.apiKey && config.projectId);
+
+// Geliştirme ortamında Firestore'un geçici bağlantı retry uyarılarının
+// Next.js dev overlay'ini tetiklemesini önler.
+if (typeof window !== "undefined") {
+  try {
+    setLogLevel("silent");
+  } catch {
+    // yoksay
+  }
+}
 
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;

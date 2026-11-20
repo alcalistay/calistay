@@ -27,6 +27,8 @@ import {
   FileSpreadsheet,
   RotateCcw,
   Trash2,
+  ExternalLink,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -128,6 +130,155 @@ export function SubmissionsTable<T extends Row>({
   const [committeeFilter, setCommitteeFilter] = useState<string>("hepsi");
   const [roleFilter, setRoleFilter] = useState<"hepsi" | "delege" | "chair" | "admin">("hepsi");
   const [selectedRow, setSelectedRow] = useState<T | null>(null);
+
+  // E-posta Gönderme Modalı State'leri
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailDecisionType, setEmailDecisionType] = useState<"kabul" | "red">("kabul");
+  const [emailAssignedCommittee, setEmailAssignedCommittee] = useState("");
+  const [emailCustomNote, setEmailCustomNote] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+
+  function openEmailModal(type: "kabul" | "red") {
+    if (!selectedRow) return;
+    setEmailDecisionType(type);
+    const choices = Array.isArray(selectedRow.choices) ? (selectedRow.choices as string[]) : [];
+    setEmailAssignedCommittee(
+      String(selectedRow.assignedCommittee || choices[0] || "hukuk")
+    );
+    setEmailCustomNote("");
+    setEmailModalOpen(true);
+  }
+
+  async function handleSendDecisionEmail() {
+    if (!selectedRow) return;
+    const email = String(selectedRow.email || "");
+    const name = String(selectedRow.name || selectedRow.person || "");
+    if (!email) {
+      toast.error("Adayın kayıtlı e-posta adresi bulunamadı.");
+      return;
+    }
+
+    setEmailSending(true);
+    try {
+      const res = await fetch("/api/mail/send-decision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          applicationId: selectedRow.id,
+          name,
+          email,
+          applicantType: String(selectedRow.applicantType || "delege"),
+          decision: emailDecisionType,
+          assignedCommittee:
+            emailDecisionType === "kabul" ? emailAssignedCommittee : undefined,
+          customNote: emailCustomNote.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "E-posta gönderimi başarısız oldu.");
+      }
+
+      // Firestore kaydını güncelle
+      const db = getDb();
+      if (db) {
+        const updateData: Record<string, unknown> = {
+          decisionEmailSent: true,
+          decisionEmailType: emailDecisionType,
+          decisionEmailSentAt: new Date().toISOString(),
+          status: emailDecisionType,
+        };
+        if (emailDecisionType === "kabul" && emailAssignedCommittee) {
+          updateData.assignedCommittee = emailAssignedCommittee;
+        }
+        await updateDoc(doc(db, path, selectedRow.id), updateData);
+
+        setSelectedRow((prev) =>
+          prev
+            ? ({
+                ...prev,
+                ...updateData,
+              } as T)
+            : null
+        );
+      }
+
+      toast.success(
+        emailDecisionType === "kabul"
+          ? `Kabul e-postası ${name} adlı adaya iletildi!`
+          : `Bilgilendirme e-postası ${name} adlı adaya iletildi!`
+      );
+      setEmailModalOpen(false);
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast.error("E-posta gönderilemedi", {
+        description:
+          error.message ||
+          "Lütfen internet bağlantısını ve Gmail ayarlarını kontrol edin.",
+      });
+    } finally {
+      setEmailSending(false);
+    }
+  }
+
+  /** Gmail Web Taslağı Olarak Açma (Sıfır Hata / 2FA ve Şifre Gerektirmez) */
+  function openInGmail() {
+    if (!selectedRow) return;
+    const email = String(selectedRow.email || "");
+    const name = String(selectedRow.name || selectedRow.person || "");
+    const roleName =
+      String(selectedRow.applicantType).toLowerCase() === "chair"
+        ? "Chair (Komite Başkanı)"
+        : String(selectedRow.applicantType).toLowerCase() === "admin"
+          ? "Admin (İdari Ekip)"
+          : "Delege";
+
+    const isAccepted = emailDecisionType === "kabul";
+    const subject = isAccepted
+      ? `Tebrikler! ALÇAL'27 Başvurunuz Kabul Edildi — ${name}`
+      : `ALÇAL'27 Başvuru Değerlendirme Sonucu — ${name}`;
+
+    const committeeText =
+      isAccepted &&
+      emailAssignedCommittee &&
+      String(selectedRow.applicantType).toLowerCase() !== "admin"
+        ? `Atandığınız Komite: ${committeeName(emailAssignedCommittee)}\n`
+        : "";
+
+    const noteText = emailCustomNote.trim()
+      ? `\nÖzel Açıklama:\n${emailCustomNote.trim()}\n`
+      : "";
+
+    const bodyText = isAccepted
+      ? `Sayın ${name},\n\nALÇAL'27 (Atatürk Lisesi Çalıştayı 2027) için yapmış olduğunuz ${roleName} başvurunuz Akademi ve Organizasyon Kurulumuz tarafından titizlikle değerlendirilmiş ve MEMNUNİYETLE KABUL EDİLMİŞTİR.\n\n${committeeText}Etkinlik Tarihi: 15 – 17 Ocak 2027\nEtkinlik Yeri: Eskişehir Atatürk Lisesi\n${noteText}\nEtkinlik oturum saatleri, çalışma kılavuzları (study guide) ve katılımcı bilgilendirme rehberimiz ilerleyen günlerde sizinle paylaşılacaktır.\n\nSizi aramızda görmekten büyük mutluluk duyuyoruz!\n\nSaygılarımızla,\nALÇAL'27 Organizasyon Ekibi\nE-posta: alcalistay26@gmail.com\nInstagram: instagram.com/alcalistay`
+      : `Sayın ${name},\n\nALÇAL'27 (Atatürk Lisesi Çalıştayı 2027) için göstermiş olduğunuz ilgi ve kıymetli başvurunuz için teşekkür ederiz.\n\nBu yılki kontenjanlarımızın ve komite kapasitelerimizin sınırlı olması sebebiyle, başvurunuzu bu dönem için ne yazık ki olumlu olarak sonuçlandıramadığımızı üzülerek bildirmek isteriz.\n${noteText}\nAkademik ve kişisel yolculuğunuzda başarılar diler, gelecekteki çalışmalarımızda sizi tekrar aramızda görmekten mutluluk duyarız.\n\nSaygılarımızla,\nALÇAL'27 Organizasyon Ekibi\nE-posta: alcalistay26@gmail.com\nInstagram: instagram.com/alcalistay`;
+
+    const composeUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+      email
+    )}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+
+    window.open(composeUrl, "_blank");
+
+    // Durumu Firestore'da işaretle
+    const db = getDb();
+    if (db) {
+      const updateData: Record<string, unknown> = {
+        decisionEmailSent: true,
+        decisionEmailType: emailDecisionType,
+        decisionEmailSentAt: new Date().toISOString(),
+        status: emailDecisionType,
+      };
+      if (emailDecisionType === "kabul" && emailAssignedCommittee) {
+        updateData.assignedCommittee = emailAssignedCommittee;
+      }
+      updateDoc(doc(db, path, selectedRow.id), updateData);
+      setSelectedRow((prev) => (prev ? ({ ...prev, ...updateData } as T) : null));
+    }
+
+    toast.success("Gmail yeni sekmede açıldı ve durum güncellendi!");
+    setEmailModalOpen(false);
+  }
 
   // Dışa Aktarma Menüsü Açık/Kapalı
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
@@ -1163,10 +1314,32 @@ export function SubmissionsTable<T extends Row>({
                             {String(row.name ?? row.person ?? "—")}
                           </span>
                         </div>
-                        <div className="text-[11.5px] text-muted-foreground">
-                          {row.createdAt
-                            ? dateOnlyFormat.format(row.createdAt)
-                            : "—"}
+                        <div className="flex items-center gap-1.5 mt-0.5 text-[11.5px] text-muted-foreground">
+                          <span>
+                            {row.createdAt
+                              ? dateOnlyFormat.format(row.createdAt)
+                              : "—"}
+                          </span>
+                          {Boolean(row.decisionEmailSent) && (
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded px-1.5 py-0.2 text-[10px] font-semibold border",
+                                row.decisionEmailType === "kabul"
+                                  ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-400"
+                                  : "border-rose-500/30 bg-rose-500/15 text-rose-400"
+                              )}
+                              title={
+                                row.decisionEmailType === "kabul"
+                                  ? "Kabul e-postası adaya iletildi"
+                                  : "Red e-postası adaya iletildi"
+                              }
+                            >
+                              <Mail className="size-2.5" />
+                              {row.decisionEmailType === "kabul"
+                                ? "Kabul Maili İletildi"
+                                : "Red Maili İletildi"}
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -1369,6 +1542,52 @@ export function SubmissionsTable<T extends Row>({
               </button>
             </div>
 
+            {/* E-posta Bildirim Çubuğu / Kontrol Kartı */}
+            {isDelegate && Boolean(selectedRow.email) && (
+              <div className="mt-3.5 rounded-xl border border-border bg-white/[0.02] p-3.5 sm:p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Mail className="size-4 text-accent" />
+                      <span className="text-[13px] font-semibold text-foreground">
+                        Resmî Sonuç E-postası Gönder
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[12px] text-muted-foreground">
+                      {selectedRow.decisionEmailSent ? (
+                        <span className="text-emerald-400 font-medium">
+                          ✓ {selectedRow.decisionEmailType === "kabul" ? "Kabul" : "Red"} e-postası daha önce iletildi.
+                          {Boolean(selectedRow.assignedCommittee) &&
+                            ` (Atanan Komite: ${committeeName(String(selectedRow.assignedCommittee))})`}
+                        </span>
+                      ) : (
+                        "Yanlışlıkla gönderimi önlemek için durum değiştirilse bile e-posta onaysız gitmez. Göndermek için sağdaki butonları kullanın."
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => openEmailModal("kabul")}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[12px] font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                    >
+                      <CheckCircle2 className="size-3.5" />
+                      Kabul E-postası...
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openEmailModal("red")}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-[12px] font-semibold text-rose-400 hover:bg-rose-500/20 transition-colors"
+                    >
+                      <XCircle className="size-3.5" />
+                      Red E-postası...
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Detay Bilgileri Izgarası */}
             <div className="mt-6 space-y-5 text-[13.5px]">
               {/* İletişim Butonları */}
@@ -1543,6 +1762,166 @@ export function SubmissionsTable<T extends Row>({
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. ONAYLI E-POSTA GÖNDERME PENCERESİ */}
+      {emailModalOpen && selectedRow && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => !emailSending && setEmailModalOpen(false)}
+        >
+          <div
+            className="relative flex w-full max-w-lg flex-col rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Başlığı */}
+            <div className="flex items-start justify-between border-b border-border pb-4">
+              <div className="flex items-center gap-2.5">
+                <span
+                  className={cn(
+                    "grid size-8 place-items-center rounded-lg border",
+                    emailDecisionType === "kabul"
+                      ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-400"
+                      : "border-rose-500/30 bg-rose-500/15 text-rose-400"
+                  )}
+                >
+                  <Mail className="size-4" />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">
+                    {emailDecisionType === "kabul"
+                      ? "Kabul E-postası Gönderimi"
+                      : "Red / Bilgilendirme E-postası Gönderimi"}
+                  </h3>
+                  <p className="text-[12px] text-muted-foreground">
+                    Alıcı: <strong className="text-foreground">{String(selectedRow.email)}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={emailSending}
+                onClick={() => setEmailModalOpen(false)}
+                className="rounded-lg border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {/* Form Alanları */}
+            <div className="mt-4 space-y-4 text-[13px]">
+              {/* Bilgilendirme Kutusu */}
+              <div
+                className={cn(
+                  "rounded-lg border p-3 text-[12.5px] leading-relaxed",
+                  emailDecisionType === "kabul"
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                    : "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                )}
+              >
+                {emailDecisionType === "kabul"
+                  ? `Sayın ${String(selectedRow.name || "")} adlı adaya resmî ALÇAL'27 kabul ve tebrik mektubu iletilecektir.`
+                  : `Sayın ${String(selectedRow.name || "")} adlı adaya nazik bir ret ve teşekkür mektubu iletilecektir.`}
+              </div>
+
+              {/* Atanan Komite Seçimi (Yalnızca Kabul ve Delege/Chair ise) */}
+              {emailDecisionType === "kabul" &&
+                String(selectedRow.applicantType).toLowerCase() !== "admin" && (
+                  <div>
+                    <label className="text-[12.5px] font-semibold text-foreground">
+                      Atanan Komite:
+                    </label>
+                    <p className="text-[11.5px] text-muted-foreground">
+                      Adayın kabul edildiği komiteyi belirleyiniz (Kabul mektubunda vurgulanır).
+                    </p>
+                    <select
+                      value={emailAssignedCommittee}
+                      onChange={(e) => setEmailAssignedCommittee(e.target.value)}
+                      className="mt-1.5 h-10 w-full rounded-lg border border-input bg-white/5 px-3 text-[13px] text-foreground outline-none [color-scheme:dark] focus:border-ring"
+                    >
+                      {/* Adayın Öncelikli Tercihleri */}
+                      {Array.isArray(selectedRow.choices) &&
+                        (selectedRow.choices as string[])
+                          .filter((cId) => cId && cId !== "Admin")
+                          .map((cId: string, idx: number) => (
+                            <option key={`pref-${cId}`} value={cId}>
+                              {idx + 1}. Tercihi: {committeeName(cId)}
+                            </option>
+                          ))}
+                      {/* Tüm Komiteler */}
+                      <option disabled>────────── Diğer Komiteler ──────────</option>
+                      {committees.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+              {/* Özel Not (Opsiyonel) */}
+              <div>
+                <label className="text-[12.5px] font-semibold text-foreground">
+                  Adaya Özel Ek Not <span className="text-muted-foreground font-normal">(Opsiyonel)</span>:
+                </label>
+                <textarea
+                  rows={3}
+                  value={emailCustomNote}
+                  onChange={(e) => setEmailCustomNote(e.target.value)}
+                  placeholder="Örn: Çalışma kılavuzunuz hazırlanmaktadır. İletişim grubumuza katılım linkiniz ayrıca gönderilecektir..."
+                  className="mt-1.5 w-full resize-none rounded-lg border border-input bg-white/5 p-2.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-ring"
+                />
+              </div>
+            </div>
+
+            {/* Butonlar */}
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
+              <button
+                type="button"
+                disabled={emailSending}
+                onClick={() => setEmailModalOpen(false)}
+                className="rounded-lg border border-border bg-white/5 px-3.5 py-2 text-[12.5px] font-medium text-muted-foreground hover:bg-white/10 hover:text-foreground"
+              >
+                Vazgeç
+              </button>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* 1. Yöntem: Gmail Web Üzerinden Tek Tıkla Hazır Taslak (Garantili & Spamsız) */}
+                <button
+                  type="button"
+                  disabled={emailSending}
+                  onClick={openInGmail}
+                  title="Gmail web sayfasında hazır taslak olarak açar ve adayı işaretler"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/40 bg-sky-500/10 px-3.5 py-2 text-[12.5px] font-semibold text-sky-400 hover:bg-sky-500/20 transition-all"
+                >
+                  <ExternalLink className="size-3.5" />
+                  <span>Gmail ile Aç ve Gönder</span>
+                </button>
+
+                {/* 2. Yöntem: Arka Planda Otomatik Gönderim */}
+                <button
+                  type="button"
+                  disabled={emailSending}
+                  onClick={handleSendDecisionEmail}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[12.5px] font-semibold text-white transition-all disabled:opacity-50",
+                    emailDecisionType === "kabul"
+                      ? "bg-emerald-600 hover:bg-emerald-500"
+                      : "bg-rose-600 hover:bg-rose-500"
+                  )}
+                >
+                  <Send className="size-3.5" />
+                  <span>
+                    {emailSending
+                      ? "Gönderiliyor..."
+                      : "Otomatik Gönder"}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

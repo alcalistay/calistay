@@ -36,6 +36,7 @@ type Errors = Partial<
     | "city"
     | "address"
     | "experience"
+    | "pastConferencesAndAwards"
     | "choice1"
     | "choice2"
     | "choice3"
@@ -155,6 +156,7 @@ export function Apply() {
     const trimmedCity = city.trim();
     const trimmedAddress = address.trim();
     const trimmedSchoolOther = schoolOther.trim();
+    const trimmedPastConferences = pastConferencesAndAwards.trim();
     const trimmedMotivation = motivation.trim();
 
     const next: Errors = {};
@@ -178,6 +180,18 @@ export function Apply() {
       if (!choices.c1) next.choice1 = "1. komite tercihinizi yapın.";
       if (!choices.c2) next.choice2 = "2. komite tercihinizi yapın.";
       if (!choices.c3) next.choice3 = "3. komite tercihinizi yapın.";
+    }
+
+    if (!trimmedPastConferences) {
+      next.pastConferencesAndAwards =
+        "Lütfen geçmiş tecrübelerinizi yazınız (Deneyiminiz yoksa 'Yok' veya 'İlk deneyimim' yazabilirsiniz).";
+    } else if (
+      experience !== "0" &&
+      (trimmedPastConferences.toLowerCase() === "yok" ||
+        trimmedPastConferences.toLowerCase() === "hayır")
+    ) {
+      next.pastConferencesAndAwards =
+        "Geçmiş deneyim sayınızı 0'dan farklı seçtiğiniz için lütfen katıldığınız etkinlik veya tecrübelerinizi belirtiniz.";
     }
 
     if (trimmedMotivation.length < MIN_MOTIVATION) {
@@ -247,6 +261,21 @@ export function Apply() {
         }
         setSavedApp(payload);
         setSent(true);
+
+        // Adaya arka planda otomatik teyit e-postası gönder
+        fetch("/api/mail/application-received", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: trimmedName,
+            email: trimmedEmail,
+            applicantType,
+            choices: effectiveChoices,
+          }),
+        }).catch((err) => {
+          console.warn("[Apply] Otomatik teyit e-postası gönderilemedi:", err);
+        });
+
         toast.success("Başvurunuz başarıyla alındı!", {
           description: "Sonuçlar e-posta adresinize bildirilecektir.",
         });
@@ -733,7 +762,8 @@ export function Apply() {
 
                 <Step
                   no={applicantType === "admin" ? "02" : "03"}
-                  title="Geçmiş Deneyim ve Ödüller"
+                  title="Geçmiş Deneyim ve Tecrübe"
+                  required
                   detail="Daha önce katıldığınız çalıştay veya MUN sayısı ve tecrübeleriniz."
                 />
 
@@ -762,23 +792,33 @@ export function Apply() {
                     htmlFor="pastConferencesAndAwards"
                     className="text-[13px] font-medium text-foreground"
                   >
-                    Daha önce katıldığınız çalıştay / MUN isimleri ve aldığınız ödüller{" "}
-                    <span className="text-[12px] font-normal text-muted-foreground">
-                      (Opsiyonel)
-                    </span>
+                    Daha önce katıldığınız çalıştay / MUN isimleri, tecrübeleriniz ve aldığınız ödüller{" "}
+                    <span className="text-accent">*</span>
                   </label>
                   <textarea
                     id="pastConferencesAndAwards"
                     name="pastConferencesAndAwards"
                     rows={3}
                     value={pastConferencesAndAwards}
-                    onChange={(e) => setPastConferencesAndAwards(e.target.value)}
-                    placeholder="Örn: HASAL'24 (Best Delegate), KFLMUN'23 (Outstanding Delegate), ALÇAL'25 (Delege / Chair / Admin)..."
-                    className="mt-2 w-full resize-none rounded-md border border-input bg-white/5 px-3.5 py-2.5 text-[14px] leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                    onChange={(e) => {
+                      setPastConferencesAndAwards(e.target.value);
+                      if (errors.pastConferencesAndAwards) {
+                        setErrors((prev) => ({
+                          ...prev,
+                          pastConferencesAndAwards: undefined,
+                        }));
+                      }
+                    }}
+                    placeholder="Örn: HASAL'24 (Best Delegate), KFLMUN'23 (Outstanding Delegate), ALÇAL'25 (Delege / Chair / Admin)... (Deneyiminiz yoksa 'Yok' veya 'İlk deneyimim' yazabilirsiniz)"
+                    aria-invalid={Boolean(errors.pastConferencesAndAwards)}
+                    className="mt-2 w-full resize-none rounded-md border border-input bg-white/5 px-3.5 py-2.5 text-[14px] leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-ring focus:ring-2 focus:ring-ring/20 aria-invalid:border-destructive"
                   />
                   <p className="mt-1 text-[11.5px] text-muted-foreground">
-                    Daha önce katıldığınız çalıştay veya MUN konferanslarının isimlerini ve varsa kazandığınız ödülleri belirtebilirsiniz.
+                    Daha önce katıldığınız çalıştay veya MUN konferanslarındaki tecrübelerinizi ve varsa kazandığınız ödülleri belirtiniz. Deneyiminiz yoksa &apos;Yok&apos; veya &apos;İlk deneyimim&apos; yazabilirsiniz.
                   </p>
+                  {errors.pastConferencesAndAwards && (
+                    <FieldError>{errors.pastConferencesAndAwards}</FieldError>
+                  )}
                 </div>
               </fieldset>
 
