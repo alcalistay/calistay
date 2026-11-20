@@ -354,25 +354,38 @@ export function SubmissionsTable<T extends Row>({
     const db = getDb();
     if (!db) return;
 
-    const q = query(collection(db, path), orderBy("createdAt", "desc"));
+    // Index eksikliği veya createdAt alanı bulunmayan kayıtların görünmemesini önlemek için
+    // koleksiyonu doğrudan dinleyip sıralamayı istemci tarafında güvenle yapıyoruz.
     return onSnapshot(
-      q,
+      collection(db, path),
       (snapshot) => {
-        setRows(
-          snapshot.docs.map((d) => {
-            const data = d.data();
-            return {
-              ...data,
-              id: d.id,
-              status: (data.status as ApplicationStatus) ?? "yeni",
-              createdAt: toDate(data.createdAt),
-            } as unknown as T;
-          }),
-        );
+        const loaded = snapshot.docs.map((d) => {
+          const data = d.data();
+          return {
+            ...data,
+            id: d.id,
+            status: (data.status as ApplicationStatus) ?? "yeni",
+            createdAt: toDate(data.createdAt),
+          } as unknown as T;
+        });
+
+        // Yeniden eskiye sırala
+        loaded.sort((a: unknown, b: unknown) => {
+          const timeA = (a as { createdAt?: Date | null }).createdAt
+            ? new Date((a as { createdAt: Date }).createdAt).getTime()
+            : 0;
+          const timeB = (b as { createdAt?: Date | null }).createdAt
+            ? new Date((b as { createdAt: Date }).createdAt).getTime()
+            : 0;
+          return timeB - timeA;
+        });
+
+        setRows(loaded);
         setLoading(false);
       },
       (error) => {
         console.error("Firestore error:", error);
+        toast.error("Başvuru listesi yüklenemedi: " + (error.message || "Erişim izni hatası"));
         setLoading(false);
       },
     );
