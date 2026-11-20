@@ -358,7 +358,7 @@ export function Apply() {
           lead="Çalıştayımıza katılmak için formu eksiksiz doldurun. Delege, Chair ve Admin başvuruları organizasyon komitemiz tarafından titizlikle değerlendirilip sonuçlar e-posta ile iletilecektir."
         />
 
-        <Reveal className="mt-10">
+        <Reveal className="mt-10" amount={0.01}>
           {loading ? (
             <div className="h-64 animate-pulse rounded-lg border border-border bg-card" />
           ) : !settings.applicationsOpen ? (

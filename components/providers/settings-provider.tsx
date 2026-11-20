@@ -39,25 +39,39 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(firebaseEnabled);
 
   useEffect(() => {
+    // Mobil veya zayıf bağlantılarda arayüzün kilitli kalmaması için en fazla 1 saniye bekle
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+
     const db = getDb();
-    if (!db) return;
+    if (!db) {
+      clearTimeout(timer);
+      setLoading(false);
+      return;
+    }
 
     const unsubscribe = onSnapshot(
       doc(db, ...paths.settingsDoc),
       (snapshot) => {
+        clearTimeout(timer);
         setSettings(
           snapshot.exists() ? normalizeSettings(snapshot.data()) : defaultSettings,
         );
         setLoading(false);
       },
       () => {
+        clearTimeout(timer);
         // Okuma başarısızsa (kural hatası, çevrimdışı) varsayılanlarla devam et.
         setSettings(defaultSettings);
         setLoading(false);
       },
     );
 
-    return unsubscribe;
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
   }, []);
 
   return (
