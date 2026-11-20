@@ -182,16 +182,10 @@ export function Apply() {
       if (!choices.c3) next.choice3 = "3. komite tercihinizi yapın.";
     }
 
-    if (!trimmedPastConferences) {
+    // Deneyim sayısı 0'dan farklı seçilmişse geçmiş tecrübeler zorunludur
+    if (experience !== "0" && !trimmedPastConferences) {
       next.pastConferencesAndAwards =
-        "Lütfen geçmiş tecrübelerinizi yazınız (Deneyiminiz yoksa 'Yok' veya 'İlk deneyimim' yazabilirsiniz).";
-    } else if (
-      experience !== "0" &&
-      (trimmedPastConferences.toLowerCase() === "yok" ||
-        trimmedPastConferences.toLowerCase() === "hayır")
-    ) {
-      next.pastConferencesAndAwards =
-        "Geçmiş deneyim sayınızı 0'dan farklı seçtiğiniz için lütfen katıldığınız etkinlik veya tecrübelerinizi belirtiniz.";
+        "Geçmiş deneyim sayınızı " + experience + " seçtiğiniz için lütfen katıldığınız etkinlik veya tecrübelerinizi yazınız.";
     }
 
     if (trimmedMotivation.length < MIN_MOTIVATION) {
@@ -217,6 +211,8 @@ export function Apply() {
     const effectiveSchool =
       school === OTHER_SCHOOL_VALUE ? trimmedSchoolOther : school;
     const fullPhone = `+90 ${phone}`;
+    const effectivePastConferences =
+      trimmedPastConferences || (experience === "0" ? "Yok (İlk deneyimim)" : "");
 
     setSending(true);
 
@@ -239,8 +235,8 @@ export function Apply() {
         grade,
         address: trimmedAddress,
         experience,
-        pastConferencesAndAwards: pastConferencesAndAwards.trim(),
-        awards: pastConferencesAndAwards.trim(),
+        pastConferencesAndAwards: effectivePastConferences,
+        awards: effectivePastConferences,
         choices: effectiveChoices,
         motivation: trimmedMotivation,
       });
@@ -793,7 +789,13 @@ export function Apply() {
                     className="text-[13px] font-medium text-foreground"
                   >
                     Daha önce katıldığınız çalıştay / MUN isimleri, tecrübeleriniz ve aldığınız ödüller{" "}
-                    <span className="text-accent">*</span>
+                    {experience === "0" ? (
+                      <span className="text-[12px] font-normal text-muted-foreground">
+                        (İlk defa katılıyorsanız boş bırakabilirsiniz)
+                      </span>
+                    ) : (
+                      <span className="text-accent">* (Zorunlu)</span>
+                    )}
                   </label>
                   <textarea
                     id="pastConferencesAndAwards"
